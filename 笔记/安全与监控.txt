@@ -1,0 +1,716 @@
+						服务的安全与监控
+						　　第一天
+/etc/login.defs这个配置文件，决定了账户密码的默认有效期
+/etc/issue这个配置文件里保存的就是这些登陆信息，修改该文件防止内核信息泄露
+[root@proxy ~]# cat /etc/login.defs
+PASS_MAX_DAYS    99999                        //密码最长有效期
+PASS_MIN_DAYS    0                            //密码最短有效期
+PASS_MIN_LEN    5                            //密码最短长度
+PASS_WARN_AGE    7                            //密码过期前几天提示警告信息
+UID_MIN                  1000                //UID最小值
+UID_MAX                  60000                //UID最大值
+
+[root@proxy ~]# cat /etc/issue                              //确认原始文件
+Red Hat Enterprise Linux Server release 6.5 (Santiago)
+Kernel \r on an \m
+
+[root@proxy ~]# vim /etc/issue                              //修改文件内容
+Windows Server 2012 Enterprise R2
+NT 6.2 Hybrid
+
+设置帐号有效期
+使用chage工具
+[root@mysql52 ~]# chage -l tom
+＃查看账户的详细信息
+[root@mysql52 ~]# chage -E 2019-12-31 tom
+＃修改账户有效信息
+[root@mysql52 ~]# chage -d -1 tom
+＃设置最近一次密码设置时间，-１为登录立马修改密码
+
+[root@proxy ~]# passwd -l zhangsan                       //锁定用户账号lock
+[root@proxy ~]# passwd -S zhangsan                      //查看状态status
+zhangsan LK 2018-02-22 0 99999 7 -1 (密码已被锁定。)
+
+[root@proxy ~]# passwd -u zhangsan                       //解锁用户账号
+解锁用户 zhangsan 的密码 。
+passwd: 操作成功
+[root@proxy ~]# passwd -S zhangsan                      //查看状态
+zhangsan PS 2018-08-14 0 99999 7 -1 (密码已设置，使用 SHA512 加密。)
+
+# chattr +i  文件名                    //锁定文件（无法修改、删除等）
+# chattr -i  文件名                    //解锁文件
+# chattr +a  文件名                    //锁定后文件仅可追加
+# chattr -a  文件名                    //解锁文件
+# lsattr 文件名                        //查看文件特殊属性
+
+[root@mysql52 ~]# su - jerry
+#切换用户
+[root@mysql52 ~]# su  jerry
+＃不加-则切换用户，不切换用户的环境
+[jerry@mysql52 ~]$ su - -c "systemctl start mysqld" root
+＃用su命令在root上执行命令
+
+二、用户切换和提权
+sudo命令使用
+主配置文件：/etc/sudoers
+修改配置文件　　vim /etc/sudoers
+			或
+		sudovi /etc/sudoers
+
+#创建用户
+[root@mysql52 ~]# useradd nb 
+[root@mysql52 ~]# useradd dachui
+[root@mysql52 ~]# useradd tiechui
+＃修改密码
+[root@mysql52 ~]# echo 1 | passwd  --stdin nb
+[root@mysql52 ~]# echo 1 | passwd  --stdin dachui
+[root@mysql52 ~]# echo 1 | passwd  --stdin tiechui
+
+—设置提权权限
+[root@mysql52 ~]# vim /etc/sudoers
+dachui localhost,mysql52=/usr/bin/systemctl * httpd , /usr/bin/vim  /etc/httpd/conf/httpd.conf
+
+tiechui localhost,mysql52=/usr/bin/systemctl * mysqld , /usr/bin/vim  /etc/my.cnf
+
+nb      localhost,mysql52=/usr/bin/systemctl * httpd , /usr/bin/systemctl  * mysqld , /usr/bin/vim  /etc/httpd/conf/httpd.conf  , /usr/bin/vim  /etc/my.cnf , /sbin/* , !/sbin/ifconfig eth0
+
+—用别名的方式设置权限,别名名称必须要大写
+＃给权限设置别名
+Cmnd_Alias      MGMWEB=/usr/bin/systemctl  * httpd , /usr/bin/vim  /etc/httpd/conf/httpd.conf
+Cmnd_Alias      MGMDB=/usr/bin/systemctl  * mysqld , /usr/bin/vim  /etc/my.cnf
+Cmnd_Alias      MGMOFT=/usr/bin/rpm , /usr/bin/yum
+
+＃给主机设置别名
+Host_Alias      MYSER=localhost,mysql52
+
+＃给用户设置别名
+User_Alias	......
+
+＃设置权限
+dachui  MYSER=MGMWEB , MGMOFT
+tiechui MYSER=MGMDB , MGMOFT
+nb      MYSER=MGMWEB , MGMDB ,  MGMOFT
+
+—启动日志
+记录普通用户执行过的提权命令
+[root@mysql52 ~]# vim /etc/sudoers
+#在末尾加上一句
+Defaults  logfile="/var/log/sudo.log"
+　
+—ssh访问控制
+#ssh常用的基本配置
+Protocol 2                                          //SSH协议
+PermitRootLogin no                                  //禁止root用户登录
+PermitEmptyPasswords no                              //禁止密码为空的用户登录
+UseDNS  no                                          //不解析客户机地址
+LoginGraceTime  1m                                  //登录限时
+MaxAuthTries  3                                      //每连接最多认证次数
+
+Port 2222				＃修改端口
+ListenAddress  192.168.4.52
+
+＃黑白名单
+白名单：仅允许使用列表里的用户连接
+AllowUsers nb  root@192.168.4.254	＃仅允许用nb用户登录本机
+[root@mysql52 ~]# systemctl restart sshd
+
+黑名单：仅不允许使用列表里的用户连接
+[root@mysql52 ~]# vim /etc/ssh/sshd_config 
+#AllowUsers nb  root@192.168.4.254
+DenyUsers   nb  192.168.4.254		＃仅不允许用nb用户登录本机
+[root@mysql52 ~]# systemctl restart sshd
+
+
+－SELINUX
+－SELINUX安全上下文值
+＃查看安全上下文值
+文件	ls -lZ 　　文件名
+目录	ls -ldZ　　目录名
+进程	ps aux -Z  | grep  -i 进程名
+[root@mysql53 ~]# ls -lZ /etc/passwd
+[root@mysql53 ~]# ls -ldZ /etc/
+[root@mysql53 ~]# ps aux -Z  | grep -i httpd
+
+用户：角色：访问类型：选项
+system_u:object_r:passwd_file_t:s0
+system_u:object_r:etc_t:s0  
+system_u:system_r:httpd_t:s0
+
+－一般操作规律
+移动的文件，原有的上下文属性不变
+复制的文件，自动继承目标位置的上下文
+
+－修改安全上下文
+chcon
+[root@mysql53 ~]# chcon -R -t httpd_sys_content_t /var/www/html/
+[root@mysql53 ~]# chcon  -t httpd_sys_content_t /var/www/html/
+
+－重置安全上下文
+[root@mysql53 ~]# restorecon -R /var/www/html
+[root@mysql53 ~]# restorecon  /var/www/html
+
+步骤二：在SELinux启用状态下，调整策略打开vsftpd服务的匿名上传访问
+
+1）配置一个允许匿名上传的vsftpd服务作为测试环境
+[root@proxy ~]# setenforce 1
+[root@proxy ~]# yum -y install vsftpd
+.. ..
+[root@proxy ~]# vim /etc/vsftpd/vsftpd.conf
+anonymous_enable=YES                                  //开启匿名访问
+anon_upload_enable=YES                              //允许上传文件
+anon_mkdir_write_enable=YES                          //允许上传目录
+[root@proxy ~]# systemctl start vsftpd                //启动服务
+//默认Vsftpd共享目录为/var/ftp/
+
+步骤三：从/root目录下移动2个包文件到FTP下载目录，调整文件的安全上下文
+/测试文件1，直接在ftp目录下创建文件
+[root@proxy ~]# tar -czf  /var/ftp/log1.tar  /var/log
+[root@proxy ~]# ls -lh /var/ftp/
+-rw-r--r--. 1 root root 8M 8月  16 10:16 log1.tar
+[root@proxy ~]# ls -Z /var/ftp/
+-rw-r--r--. root root unconfined_u:object_r:public_content_t:s0 log1.tar
+//测试文件2，在/root下建立，然后移动至/var/ftp目录
+[root@proxy ~]# tar -czf  log2.tar  /var/log
+[root@proxy ~]# mv log2.tar /var/ftp/
+[root@proxy ~]# ls -lh /var/ftp/
+-rw-r--r--. 1 root root 8M 8月  16 10:16 log2.tar
+[root@proxy ~]# ls -Z /var/ftp/
+-rw-r--r--. 1 root root unconfined_u:object_r:admin_home_t:s0 log2.tar
+
+3）通过FTP方式测试下载
+[root@proxy ~]# wget ftp://192.168.4.5/log1.tar            //下载第一个文件，成功
+[root@proxy ~]# wget ftp://192.168.4.5/log2.tar            //下载第二个文件，失败
+
+－SElinux布尔值（功能开关）
+查看布尔值　
+[root@mysql53 ~]# getsebool -a
+[root@mysql53 ~]# getsebool -a |grep ftp
+[root@mysql53 ~]# getsebool -a |grep http
+[root@mysql53 ~]# getsebool -a |grep samba
+
+修改布尔值
+setsebool -P 选项名　on|off
+禁用selinux在主机192.168.4.53上运行vsftpd服务　允许匿名用户访问服务的/var/ftp/share目录时
+有上传和下载文件的权限
+[root@mysql53 ~]# mkdir /var/ftp/share
+[root@mysql53 ~]# chmod o+w /var/ftp/share
+[root@mysql50 ~]# ftp 192.168.4.53
+
+[root@mysql53 ~]# setsebool -P ftpd_anon_write on
+[root@mysql53 ~]# setsebool -P ftpd_full_access=1
+
+－部署web页面，把端口改为8077
+[root@mysql53 ~]# yum -y install httpd
+[root@mysql53 ~]# vim +42 /etc/httpd/conf/httpd.conf 
+Listen 8077
+[root@mysql53 ~]# systemctl restart httpd
+
+－部署web页面，把端口改为8099
+[root@mysql53 ~]# setenforce 1
+[root@mysql53 ~]# vim +42 /etc/httpd/conf/httpd.conf 
+Listen 8099
+[root@mysql53 ~]# systemctl restart httpd	＃报错
+
+—查看selinux日志信息
+日志文件：/var/log/messages
+[root@mysql53 ~]# vim /var/log/messages
+或
+[root@mysql53 ~]# tailf /var/log/messages
+May 28 09:59:44 mysql53 setroubleshoot: SELinux is preventing /usr/sbin/httpd from name_bind access on the tcp_socket port 8099. For complete SELinux messages run: sealert -l 6c2f07c6-a349-49fd-a482-37c0cd906144	＃提示运行run后面的命令
+[root@mysql53 ~]#  sealert -l 6c2f07c6-a349-49fd-a482-37c0cd906144	＃看到手册运行Do后面的命令
+Do
+setsebool -P httpd_run_preupgrade 1
+Do
+allow this access for now by executing:
+# ausearch -c 'httpd' --raw | audit2allow -M my-httpd
+# semodule -i my-httpd.pp
+
+[root@mysql53 ~]# setsebool -P httpd_run_preupgrade 1
+[root@mysql53 ~]# ausearch -c 'httpd' --raw | audit2allow -M my-httpd
+[root@mysql53 ~]# semodule -i my-httpd.pp
+[root@mysql53 ~]# systemctl restart httpd	＃启动服务成功
+
+						第二天
+－加密与解密
+
+－使用md5sum命令校验
+＃查看校验值
+[root@mysql53 ~]# ls /root/ | md5sum
+5d50221f468fdae751325759c4c5debb  -
+
+＃查看创建文件后的校验值
+[root@mysql53 ~]# echo "ddddd" > /root/b.txt
+[root@mysql53 ~]# echo "ddddd" >> /root/b.txt
+[root@mysql53 ~]# ls /root/ | md5sum 
+
+－gpg数据加密例子
+真机：
+[root@room9pc01 ~]# useradd usera
+[root@room9pc01 ~]# useradd userb
+
+[root@room9pc01 ~]# echo 1 | passwd --stdin usera
+[root@room9pc01 ~]# echo 1 | passwd --stdin userb
+[root@room9pc01 ~]#ssh -X usera@localhost
+[root@room9pc01 ~]#ssh -X userb@localhost
+[usera@room9pc01 ~]$ vim test.txt
+[usera@room9pc01 ~]$ gpg -c test.txt	#创建加密文件
+输入密码1234567890
+[usera@room9pc01 ~]$ ls test.txt.gpg 	＃加密文件
+[usera@room9pc01 ~]$ ls ~/.gnupg/
+[usera@room9pc01 ~]$ mv test.txt.gpg /tmp/	＃移动加密文件到两个用户公共目录上
+
+[userb@room9pc01 ~]$ cat /tmp/test.txt.gpg 　＃查看是乱码，需要解密
+[userb@room9pc01 ~]$ gpg -d /tmp/test.txt.gpg > ~/a1.txt	＃加-d加密
+[userb@room9pc01 ~]$ cat ~/a1.txt 		#查看加密后的文件
+
+－gpg非对称加/解密：数据加密和解密使用不同的密钥
+			公钥加密　　私钥解密
+  非对称加/解密步骤？
+
+[root @ pc117~] #mv / dev / random / dev / random1
+[root @ pc117~] #ln -s / dev / urandom / dev / random
+
+userb接收方解密数据
+	] #rm -rf~ / .gnupg
+
+	1创建密钥对] #gpg --gen-key
+[userb @ pc117~] $ gpg --gen-key
+gpg（GnuPG）2.0.22; 版权所有（C）2013 Free Software Foundation，Inc。
+这是免费软件：您可以自由更改并重新分发它。
+在法律允许的范围内，不提供任何担保。
+
+gpg：已创建目录'/home/userb/.gnupg'
+gpg：新的配置文件'/home/userb/.gnupg/gpg.conf'已建立
+gpg：警告：在'/home/userb/.gnupg/gpg.conf'里的选项于此次运行期间未被使用
+gpg：钥匙环'/home/userb/.gnupg/secring.gpg'已建立
+gpg：钥匙环'/home/userb/.gnupg/pubring.gpg'已建立
+请选择您要使用的密钥种类：
+   （1）RSA和RSA（默认）
+   （2）DSA和Elgamal
+   （3）DSA（仅用于签名）
+   （4）RSA（仅用于签名）
+您的选择？ 
+RSA密钥长度应在1024位与4096位之间。
+您想要用多大的密钥尺寸？（2048）
+您所要求的密钥尺寸是2048位
+请设定这把密钥的有效期限。
+         0 =密钥永不过期
+      <n> =密钥在n天后过期
+      <n> w =密钥在n周后过期
+      <n> m =密钥在n月后过期
+      <n> y =密钥在n年后过期
+密钥的有效期限是？（0） 
+密钥永远不会过期
+以上正确吗？（Y / N）Y
+
+您需要一个用户ID来识别您的密钥; 该软件构造用户ID
+来自此表格中的真实姓名，评论和电子邮件地址：
+    “Heinrich Heine（Der Dichter）<heinrichh@duesseldorf.de>”
+
+真实姓名：用户B
+电子邮件地址：userb@tedu.cn
+注释：userbkey
+您选定了这个用户标识：
+    “userb（userbkey）<userb@tedu.cn>”
+
+更改姓名（N），注释（C），电子邮件地址（E）或确定（O）/退出（Q）2 O
+您需要一个密码来保护您的私钥。
+
+我们需要生成大量的随机字节。这个时候您可以多做些琐事（像是敲打键盘，移动
+鼠标，读写硬盘之类的），这会让随机数字发生器有更好的机会获得足够的熵数。
+我们需要生成大量的随机字节。这个时候您可以多做些琐事（像是敲打键盘，移动
+鼠标，读写硬盘之类的），这会让随机数字发生器有更好的机会获得足够的熵数。
+gpg：/home/userb/.gnupg/trustdb.gpg：建立了信任度数据库
+gpg：密钥30D97FCC被标记为绝对信任
+公钥和私钥已经生成并经签名。
+
+gpg：正在检查信任度数据库
+gpg：需要3份勉强信任和1份完全信任，PGP信任模型
+gpg：深度：0有效性：1已签名：0信任度：0-，，，0n，0m，0f，1u
+pub 2048R / 30D97FCC 2019-05-28
+密钥指纹= FCF6 CB16 D44A B929 8DAB 452F ED44 43AB 30D9 7FCC
+uid userb（userbkey）<userb@tedu.cn>
+sub 2048R / 9A57C81B 2019-05-28
+
+[userb @ pc117~] $ 
+
+
+
+	2导出公司] #gpg --export -a> userb.pub
+
+	3把公司文件共享（mv / scp）			
+		     ] #mv userb.pub / tmp /
+
+
+usera发送方加密数据
+	            ] #rm -rf~ / .gnugp
+
+	1导入公司] #gpg --import /tmp/userb.pub
+		    ] #ls~ / .gnupg
+
+	2使用公司加密gpg -e 
+        [usera @ pc117~] $ gpg -e -r userb test2.txt
+
+gpg：9A57C81B：没有证据表明这把密钥真的属于它所声称的持有者
+pubb 2048R / 9A57C81B 2019-05-28 userb（userbkey）<userb@tedu.cn>
+ 主钥指纹：FCF6 CB16 D44A B929 8DAB 452F ED44 43AB 30D9 7FCC
+ 子钥指纹：621E 1263 CB39 21D3 D0A3 09A1 2881 64C1 9A57 C81B
+这把密钥并不一定属于用户标识声称的那个人。如果您真的知道自
+己在做什么，你可以在下一个问题回答是的。
+无论如何还是使用这把密钥吗？（Y / N）Y
+
+	3发送加密文件] #mv / scp
+		       ] #mv test2.txt.gpg / tmp /
+
+	4接收方userb用户使用私密解密] #gpg -d
+	               ] #gpg -d /tmp/test2.txt.gpg>〜/ b.txt	
+		       ] #cat~ / b.txt
+
+＃gpg软件签名与验证
+1　使用私钥签名
+[userb@room9pc01 ~]$ gpg -b a1.txt 
+[userb@room9pc01 ~]$ ls a1.txt.sig 
+2　共享签名文件　公钥匙文件　原文件
+[userb@room9pc01 ~]$ cp a1.txt /tmp/
+[userb@room9pc01 ~]$ cp a1.txt.sig /tmp/
+公钥文件已经共享过了
+
+3　导入公钥
+公钥usera已经导入过了
+
+4　使用公钥验证签名文件
+[usera@room9pc01 ~]$ gpg --verify /tmp/a1.txt.sig 　＃完好文件
+[root@room9pc01 ~]#  sed -i '1aAAAAA' /tmp/a1.txt	　　＃在文件上插入内容
+[usera@room9pc01 ~]$ gpg --verify /tmp/a1.txt.sig 	＃文件损坏
+[root@room9pc01 ~]#  sed -i '2d' /tmp/a1.txt		＃删除插入内容
+[usera@room9pc01 ~]$ gpg --verify /tmp/a1.txt.sig 	＃又变成完好文件
+
+－使用AIDE入侵检测
+＃配置AIDE入侵检测服务
+[root@mysql53 ~]# yum -y install aide
+[root@mysql53 ~]# sed -i '99,$s/^/#/' /etc/aide.conf	＃99到尾行都加上注释
+[root@mysql53 ~]# vim /etc/aide.conf 
+　尾行添加：　　/root/  FIPSR
+
+[root@mysql53 ~]# aide --init
+AIDE, version 0.15.1
+
+### AIDE database at /var/lib/aide/aide.db.new.gz initialized.
+//生成校验数据库，数据保存在/var/lib/aide/aide.db.new.gz
+[root@mysql53 ~]# cp /var/lib/aide/aide.db.new.gz /tmp/
+[root@mysql53 ~]# cd /var/lib/aide/
+[root@mysql53 aide]# mv aide.db.new.gz aide.db.gz
+
+＃在root上执行操作
+[root@mysql53 ~]# rm -rf  my-httpd.te my-httpd.pp 
+[root@mysql53 ~]# vim b.txt
+
+＃检测root那些数据发生改变
+[root@mysql53 mysql]# aide --check
+
+三，扫描与抓包
+	3.0相关概念？
+
+	3.1 nmap扫描
+		基本用法
+		] #nmap [扫描类型] [选项] <扫描目标...>
+		] #man nmap
+
+		常用的扫描类型
+			-sS，TCP SYN扫描（半开）  
+			-sT，TCP连接扫描（全开）
+			-sU，UDP扫描
+			-sP，ICMP扫描
+			-A，目标系统全面分析
+
+		选项-n -p 
+
+		扫描目标：IP地址 
+				192.168.4.53
+				192.168.4.1-254
+				192.168.4.0/24
+				192.168.4.50-51
+				192.168.4.51,53,55
+
+			 主机名www.taobao.com
+
+[root @ pc117~] #rpm -q nmap
+NMAP，6.40-7.el7.x86_64
+
+[root @ pc117~] #nmap
+/斌/ NMAP
+		
+] #nmap -sP -n 172.40.54.100-110
+] #nmap -sS -n 172.40.54.102
+] #nmap -A 172.40.54.102
+] #nmap -p 21-22 192.168.4.0/24
+
+] #nmap -p 21-80 172.40.54.102
+] #nmap -p 3306,27017 172.40.54.102
+
+] #nmap -sS -n 192.168.4.53
+] #nmap -sT -n 192.168.4.53
+		
+	3.2 tcpdump抓包（命令行）
+tcpdump [选项][过滤条件]
+/监控选项如下：
+// -i，指定监控的网络接口（默认监听第一个网卡）
+// -A，转换为 ACSII 码，以方便阅读
+// -w，将数据包信息保存到指定文件
+// -r，从指定文件读取数据包信息
+// -c,指定抓包的个数
+[root@room9pc01 ~]# tcpdump -i enp1s0
+[root@room9pc01 ~]# tcpdump -i enp1s0 -c 2
+[root@room9pc01 ~]# tcpdump -i enp1s0 -c 2 -A
+[root@room9pc01 ~]# tcpdump -i enp1s0 -c 2 -A -w soft.cap
+[root@room9pc01 ~]# tcpdump -A -r soft.cap 
+
+tcpdump的过滤条件：
+// 类型：host、net、port、portrange
+// 方向：src、dst
+// 协议：tcp、udp、ip、wlan、arp、……
+// 多个条件组合：and、or、not
+＃
+[root@room9pc01 ~]# tcpdump -i enp1s0 -A icmp
+[root@room9pc01 ~]# tcpdump -i enp1s0 -A icmp and host 176.121.204.220
+
+＃
+[root@room9pc01 ~]# tcpdump -i enp1s0 -A port 80
+[root@room9pc01 ~]# tcpdump -i enp1s0 -A port 80 and host 176.121.204.220
+
+＃
+[root@room9pc01 ~]# tcpdump -i enp1s0 -A port 22
+
+＃
+[root@mysql53 ~]# setenforce 0
+[root@mysql53 ~]# useradd student
+[root@mysql53 ~]# echo abc123abc | passwd --stdin student
+[root@mysql53 ~]# systemctl restart vsftpd
+[root@mysql53 ~]# tcpdump -A -w ftp.scp port 21
+
+[root@room9pc01 ~]# ftp 192.168.4.53
+[root@mysql53 ~]# tcpdump -A -r ftp.cap | grep -i user
+[root@mysql53 ~]# tcpdump -A -r ftp.cap | grep -i pass
+
+	    wireshark抓包（图形抓包软件）
+[root@room9pc01 ~]# yum -y install wireshark  wireshark-gnome.x86_64 
+
+					第三天
+配置审计服务
+审计日志文件：/var/log/audit/audit.log 
+
+－查看审计规则
+[root@mysql53 ~]# auditctl -s	＃查看状态
+[root@mysql53 ~]# auditctl -l	＃查看规则
+[root@mysql53 ~]# auditctl -D	＃删除规则
+
+－自定义审计规则
+命令行定义，马上生效
+[root@mysql53 ~]# auditctl -w /etc/passwd -p wa -k plj_passwd
+[root@mysql53 ~]# auditctl -w /etc/selinux -p wa -k plj_selinux
+[root@mysql53 ~]# auditctl -w /usr/sbin/fdisk -p x -k plj_fdisk
+[root@mysql53 ~]# auditctl -l
+
+－永久定义
+[root@mysql53 ~]# vim /etc/audit/rules.d/audit.rules 
+-w /etc/passwd -p wa -k plj_passwd
+-w /etc/selinux -p wa -k plj_selinux
+-w /usr/sbin/fdisk -p x -k plj_fdisk
+
+－查看审计日志
+[root@mysql53 ~]# useradd userc
+[root@mysql53 ~]# fdisk -l
+
+[root@mysql53 ~]# ausearch -k plj_fdisk
+[root@mysql53 ~]# ausearch -k plj_passwd
+
+分析日志记录信息
+time	日志产生时间 	
+comm	命令名
+exec	命令的绝对路径
+uid	用户名
+exit	返回值时０　表示命令执行成功
+
+
+nginx安全配置
+＃with 则增加模块，　without 则关闭模块
+[root@mysql50 nginx-1.12.2]# mkdir /usr/local/nginx/html/game
+[root@mysql50 nginx-1.12.2]# echo "one"> /usr/local/nginx/html/game/a1.html
+[root@mysql50 nginx-1.12.2]# echo "two"> /usr/local/nginx/html/game/a2.html
+[root@mysql50 nginx-1.12.2]# vim +36 /usr/local/nginx/conf/nginx.conf
+ server {
+        autoindex on;
+        listen       80;
+        server_name  localhost;
+[root@mysql50 nginx-1.12.2]# /usr/local/nginx/sbin/nginx -s stop
+[root@mysql50 nginx-1.12.2]# /usr/local/nginx/sbin/nginx 
+
+[root@mysql50 nginx-1.12.2]# firefox http://192.168.4.50/game		＃列出目录下全部文件
+
+－修改版本信息
+＃查看nginx版本号
+[root@mysql50 nginx-1.12.2]# curl -i 192.168.4.50
+HTTP/1.1 200 OK
+Server: nginx/1.12.2
+Date: Wed, 29 May 2019 07:51:24 GMT
+Content-Type: text/html
+Transfer-Encoding: chunked
+Connection: keep-alive
+＃修改版本号
+[root@mysql50 nginx-1.12.2]# vim +48 src/http/ngx_http_header_filter_module.c 
+static u_char ngx_http_server_string[] = "Server: tedu.cn" CRLF;　
+static u_char ngx_http_server_full_string[] = "Server:tedu " NGINX_VER CRLF;
+static u_char ngx_http_server_build_string[] = "Server:tedu " NGINX_VER_BUILD CRLF;
+[root@mysql50 nginx-1.12.2]# pwd
+/root/lnmp_soft/nginx-1.12.2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

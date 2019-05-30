@@ -1,0 +1,454 @@
+一、部署MongoDB服务
+搭建MDB服务器
+＃安装软件并创建工作目录
+[root@mysql50 ~]# mkdir /usr/local/mongodb
+[root@mysql50 ~]# cd mysql/10.nosql/
+[root@mysql50 10.nosql]# tar -zxvf mongodb-linux-x86_64-rhel70-3.6.3.tgz
+[root@mysql50 10.nosql]# cd mongodb-linux-x86_64-rhel70-3.6.3/
+[root@mysql50 mongodb-linux-x86_64-rhel70-3.6.3]# cp -r bin /usr/local/mongodb/
+[root@mysql50 mongodb-linux-x86_64-rhel70-3.6.3]# cd /usr/local/mongodb/
+[root@mysql50 mongodb]# mkdir etc log
+[root@mysql50 mongodb]# mkdir -p data/db
+
+＃修改配置文件
+[root@mysql50 mongodb]# vim /usr/local/mongodb/etc/mongodb.conf
+logpath=/usr/local/mongodb/log/mongodb.log
+logappend=true
+dbpath=/usr/local/mongodb/data/db
+fork=true
+[root@mysql50 mongodb]# /usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf 
+[root@mysql50 mongodb]# netstat -nutlp | grep mongod
+
+#访问mongodb服务
+[root@mysql50 mongodb]# /usr/local/mongodb/bin/mongo
+> show dbs		#查看已有的库
+> use dbs		＃显示当前所在的库
+> use local		＃切换local库
+> db			＃显示所在的库
+> show tables	＃查看库下已有集合
+> exit		＃退出数据库
+
+查看文件　停止服务　设置命令别名
+[root@mysql50 mongodb]# ls /usr/local/mongodb/log/mongodb.log 
+/usr/local/mongodb/log/mongodb.log
+＃暂停服务
+[root@mysql50 mongodb]# /usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf --shutdown
+＃定义别名
+[root@mysql50 mongodb]# alias mstart='/usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf'
+[root@mysql50 mongodb]# alias mstop='/usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf --shutdown'
+＃永久定义
+[root@mysql50 mongodb]# vim /root/.bashrc
+alias mstart='/usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf'
+alias mstop='/usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf --shutdown'
+
+＃修改服务使用的ip地址和默认端口
+50:
+]vim /usr/local/mongodb/etc/mongodb.conf 
+bind_ip=192.168.4.50
+port=27050
+]#mstop
+]#mstart
+]＃/usr/local/mongodb/bin/mongo --host 192.168.4.50 --port 27050
+> show dbs
+
+配置：
+在51主机上运行mongodb服务
+ip地址192.168.4.51端口27051
+
+＃数据库管理
+—创库规范
+＃不可以有字符串
+＃全部都要小写
+＃最多64字节
+
+—常用管理命令
+50：
+[root@mysql50 mongodb]# /usr/local/mongodb/bin/mongo --host 192.168.4.50 --port 27050
+> show dbs
+> use userdb
+> db
+userdb
+> show tables
+> db.t1.save({ name:'bob' , age:21 })
+> db.t1.save( { school:'teran', address:"beijing",tel:119})
+> show tables
+t1
+> db.t1.find()
+{ "_id" : ObjectId("5ce797dbe161fbcf4c3c2586"), "name" : "bob", "age" : 21 }
+{ "_id" : ObjectId("5ce7981de161fbcf4c3c2587"), "school" : "teran", "address" : "beijing", "tel" : 119 }
+> db.t1.drop()
+> show tables
+
+> use userdb
+switched to db userdb
+> db
+userdb
+> db.t1.save({x:1,x:2,y:3}) 
+WriteResult({ "nInserted" : 1 })
+> db.t1.save({name:'bob',old:19})
+> db.t1.save({pay:7.88,sex:'girl',likes:'eat'})
+> db.t1.find()
+{ "_id" : ObjectId("5ce79e89e161fbcf4c3c2588"), "x" : 2, "y" : 3 }
+{ "_id" : ObjectId("5ce79eabe161fbcf4c3c2589"), "name" : "bob", "old" : 19 }
+{ "_id" : ObjectId("5ce79edce161fbcf4c3c258a"), "pay" : 7.88, "sex" : "girl", "likes" : "eat" }
+> db.t1.count()
+> db.t1.findOne()
+{ "_id" : ObjectId("5ce79e89e161fbcf4c3c2588"), "x" : 2, "y" : 3 }
+> db.t1.remove({x:1})
+> db.t1.find()
+{ "_id" : ObjectId("5ce79e89e161fbcf4c3c2588"), "x" : 2, "y" : 3 }
+{ "_id" : ObjectId("5ce79eabe161fbcf4c3c2589"), "name" : "bob", "old" : 19 }
+{ "_id" : ObjectId("5ce79edce161fbcf4c3c258a"), "pay" : 7.88, "sex" : "girl", "likes" : "eat" }
+> show tables
+> db.t1.insert({name:'bob',school:'taren1'})
+
+—基本数据类型
+　1.字符类型
+> db.t1.insert({name:'bob',school:'taren1'})
+> db.t2.save({name:'lucy',class:'nsd1902'})
+> db.t2.save({姓名:"张三丰",地址:"武当山"})
+
+　2.布尔类型
+> db.t2.save({name:'tom',memry:false,card:true})
+
+　3.空null
+> db.t2.save({name:'lucy',ruslt:null})
+
+　4.数值
+> db.t2.save({x:3003,y:3.23})
+> db.t2.save({x:NumberInt(99.99)})	＃只存储99
+> db.t2.save({x:NumberLong(88.77)})	＃不允许有小数的数
+
+　5.数组array
+> db.t2.save({name:'bob',likes:['hpop','papa','eat']})
+
+  6.代码
+> db.t2.save({lname:'php',phpcode:function(){/*<?php echo "hello boy!!!"; ?>*/}})
+
+　7.日期
+> db.t2.save({name:'jack',birthday:'2019/11/20'})
+> db.t2.save({name:'jack2',birthday:new Date()})
+
+　8.对象
+db.t2.save({
+... num:ObjectId(),name:'jack3',
+... age:19
+... })
+> db.t2.find({name:'jack3'})
+
+9.内嵌
+> db.t2.save({
+... tarena:{
+... worker:'hsy',
+... tel:119,
+... address:'beijing',
+... peple:10000},money:10000
+... })
+
+10.正则表达式
+> db.t2.save({ linenull:/^$/,linefirst:/^/})
+
+＃数据导出
+把集合里的文档存储到系统文件里
+
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongoexport --host 192.168.4.50 --port 27050 -d userdb -c t2 -f name,age --type=csv > t2.txt
+[root@mysql50 ~]# cat t2.txt 
+
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongoexport \
+> --host 192.168.4.50 --port 27050 \
+> -d userdb -c t2 \
+> -q '{name:/.*jack.*/}' -f name,age --type=csv > t2-1.txt
+2019-05-24T17:48:26.130+0800	connected to: 192.168.4.50:27050
+2019-05-24T17:48:26.131+0800	exported 3 records
+[root@mysql50 ~]# cat t2-1.txt
+
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongoexport --host 192.168.4.50 --port 27050 -d userdb -c t2 --type=json > t2-2.txt
+[root@mysql50 ~]# cat t2-2.txt
+
+导入：
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongoimport --host 192.168.4.50 --port 27050 -d userdb -c t1 -f name,age --type=csv /root/t2.txt
+
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongoimport --host 192.168.4.50 --port 27050 -d userdb -c t2 -f name,age --type=csv /root/t2.txt
+
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongoimport --host 192.168.4.50 --port 27050 -d userdb -c t3 --headerline --type=csv /root/t2.txt
+
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongoimport --host 192.168.4.50 --port 27050 -d userdb -c t3 --headerline --drop --type=csv /root/t2.txt
+#删除后执行导入
+
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongoimport --host 192.168.4.50 --port 27050 -d userdb -c t4 --type=json /root/t2-2.txt
+
+[root@mysql50 ~]# cp /etc/passwd /root/
+[root@mysql50 ~]# sed -i 's/:/,/g' /root/passwd
+[root@mysql50 ~]# sed -i '1iname,password,uid,gid,comment,homedir,shell' /root/passwd
+[root@mysql50 ~]# vim /root/passwd
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongoimport --host 192.168.4.50 --port 27050 -d userdb -c user --headerline --drop --type=csv /root/passwd 
+
+＃数据完全备份
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongodump --host 192.168.4.50 --port 27050
+[root@mysql50 ~]# ls dump/
+[root@mysql50 ~]# ls dump/userdb/
+[root@mysql50 ~]# /usr/local/mongodb/bin/bsondump /root/dump/userdb/t1.bson 
+[root@mysql50 ~]# mkdir /mbak
+[root@mysql50 ~]# /usr/local/mongodb/bin/mongodump --host 192.168.4.50 --port 27050 -d userdb -c user -o /mbak
+[root@mysql50 ~]# ls /mbak/
+[root@mysql50 ~]# ls /mbak/userdb/
+[root@mysql50 ~]# /usr/local/mongodb/bin/bsondump /mbak/userdb/user.bson 
+
+＃数据完全恢复
+[root@mysql51 ~]#  /usr/local/mongodb/bin/mongorestore --host 192.168.4.51 --port 27051 -d userdb -c user /root/mbak/userdb/user.bson 
+[root@mysql51 ~]# /usr/local/mongodb/bin/mongo --host 192.168.4.51 --port 27051
+> use userdb
+> show tables
+> db.user.count()
+> db.user.find()
+
+					　	第五天
+一、MongoDB副本集（MongoDB服务的高可用集群） 
+	1.1 副本集介绍 
+
+	1.2 配置副本集
+		1.2.1 启用副本集模式并定义名称 （51 52 53）
+		  ]# /usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf  --shutdown
+
+		  ]# vim  /usr/local/mongodb/etc/mongodb.conf
+		     replSet=rs1
+		  :wq
+		
+		 ]# /usr/local/mongodb/bin/mongod -f /usr/local/mongodb/etc/mongodb.conf
+
+		 ]# netstat -utnlp  |  grep  mongod
+
+	       1.2.2 定义成员列表
+	]# /usr/local/mongodb/bin/mongo --host 192.168.4.51 --port 27051
+
+config = {
+_id:"rs1",
+members:[
+    {_id:0,host:"192.168.4.51:27051"},
+    {_id:1,host:"192.168.4.52:27052"},
+    {_id:2,host:"192.168.4.53:27053"}
+]
+}
+	     1.2.3 创建副本集
+		> rs.initiate(config)
+
+副本集创建失败 解决办法
+		1 停止服务
+		2 删除配置文件里的副本集配置
+		3 启动服务
+		4 连接服务后 删除 local 库 断开连接
+		5 配置文件里启用副本集配置
+		6 重启服务
+		7 连接服务后，创建成员列表 然后创建副本集
+	   1.2.4 查看副本集信息
+		>  rs.status()
+		>  rs.isMaster()
+ 
+	   1.2.5 客户端50 访问副本集
+		 1 存取数据(数据同步测试)
+]# /usr/local/mongodb/bin/mongo --host 192.168.4.51 --port  27051
+	>use userdb
+	>db.t1.save({name:"bob",age:19})
+	>db.t1.find()  
+
+]# /usr/local/mongodb/bin/mongo --host 192.168.4.52 --port  27052
+	>db.getMongo().setSlaveOk()
+	> show dbs
+ 	> use userdb
+	> show tables
+	> db.t1.find()	
+
+   	      2 测试高可用
+		1 停止 主服务器51的服务
+		2 会自动在2个副本服务器里选举新的主服务器
+			新的主服务器的选举过程？
+
+		3 连接新的主服务器存取数据
+]# /usr/local/mongodb/bin/mongo --host 192.168.4.52 --port  27052
+		> db.t1.save({name:"lucy",addr:"beijing"})
+
+	      3 测试自动恢复
+		启动51的mongodb服务
+		访问51查看数据
+]# /usr/local/mongodb/bin/mongo --host 192.168.4.51 --port  27051
+	> db.getMongo().setSlaveOk()		
+	> rs.status()
+	> rs.isMaster()
+	> show dbs
+	> use userdb
+	> show tables
+	> db.t1.find()
+
+二、文档管理
+	2.1 添加  save()  insert() insertMany(）
+		> use userdb
+		> db.t2.save({ _id:7 , name:"bob" })
+
+		> db.t2.save({ _id:7 , name:"tom" })
+		> db.t2.save({ _id:8 , name:"tom" })
+
+		> db.t2.insert({ _id:7 , name:"bob" })
+		> db.t2.insert({ _id:6 , name:"bob" })
+
+		> db.t2.insertMany([
+                {name:"jakc",age:19},
+	        {mail:"plj@163.com",name:"yaya"},
+                {x:99,y:77}
+                ])
+
+
+	2.2 查询 find({条件},{显示字段设置})
+ db.user.find({},{_id:0})
+ db.user.find({},{_id:0 , name:1 , uid:1 })
+
+ db.user.find({ shell:"/bin/bash" },{_id:0 , name:1 , shell:1 })
+
+	2.4 控制查询结果的其他命令 count() findOne() skip() limit() sort()
+ db.user.count()
+
+ db.user.find({ shell:"/bin/bash" },{_id:0 , name:1 , shell:1 }).count()
+
+ db.user.findOne()
+ db.user.findOne({ shell:"/bin/bash" },{_id:0 , name:1 , shell:1 })
+
+db.user.find({ shell:"/sbin/nologin" },{_id:0 , name:1 , shell:1 }).limit(3)
+
+db.user.find({ shell:"/sbin/nologin" },{_id:0 , uid:1 , shell:1 }).skip(2)
+
+db.user.find({ shell:"/sbin/nologin" },{_id:0 , uid:1 , shell:1 }).sort({uid:-1})
+
+db.user.find({ shell:"/sbin/nologin" },{_id:0 , uid:1 , shell:1 }).sort({uid:1})
+	练习10分钟  休息 到 16：20 上课
+
+	2.3 匹配条件（适用于查询 修改 删除）
+		简单条件
+			相等比较
+			
+> db.user.find({uid:3},{_id:0})
+> db.user.find({name:"root"},{_id:0})
+
+			逻辑于比较
+> db.user.find({name:"root" , uid:7 },{_id:0})
+> db.user.find({name:"root" , uid:0 },{_id:0})
+
+			范围比较 
+db.user.find({ name:{$in:["root","adm","bin"]}  },{_id:0 ,name:1 })
+db.user.find({uid:{$nin:[9,7,21]}  },{_id:0 ,name:1,uid:1 })
+
+			逻辑或
+
+db.user.find( { $or:[{name:"root"},{uid:1},{shell:"/bin/bash"}] },{_id:0 ,name:1,uid:1 ,shell:1})
+
+			正则匹配
+db.user.find({name:/t$/},{_id:0,name:1})
+
+			数值比较
+			$lt   $lte   $gt   $gte  $ne			
+db.user.find({uid:1},{_id:0,name:1,uid:1})
+
+db.user.find({uid:{$lt:10}},{_id:0,name:1,uid:1})
+
+db.user.find({uid:{$gte:10 , $lte:20 }},{_id:0,name:1,uid:1})
+
+		匹配null
+db.user.find({name:null},{_id:0,name:1,shell:1})
+
+
+	2.3 修改 update()
+db.集合名.update({条件},{$set:{修改的字段}},false,true）
+
+db.user.find({uid:{$gte:3 , $lte:10}},{_id:0})
+
+		$set
+
+db.user.update({uid:{$gte:3 , $lte:10}},{ $set:{password:"AA" ,comment:"student"}},false,true)
+
+db.user.find({uid:{$gte:3 , $lte:10}},{_id:0})
+
+		$unset  删除与条件匹配 文档的字段
+db.user.update({name:"roota"},{$unset:{password:"A"}})
+
+		$inc 字段值自加或自减
+db.user.find({name:"bin"},{_id:0,name:1,uid:1})
+db.user.update({name:"bin"},{$inc:{uid:+2}})  正数自加
+db.user.update({name:"bin"},{$inc:{uid:-1}})  负数自减
+
+db.t2.save({name:"jerry",likes:["a","b","c","d"]})
+db.t2.find({name:"jerry"},{_id:0})
+		
+		$push  向数组中添加新元素
+
+db.t2.update({name:"jerry"},{$push:{likes:"e"}})
+db.t2.update({name:"jerry"},{$push:{likes:"e"}}) 可以添加重复值
+
+		$addToSet  避免重复添加
+db.t2.update({name:"jerry"},{$addToset:{likes:"a"}}) 添加不上
+db.t2.update({name:"jerry"},{$addToSet:{likes:"F"}}) 可以
+
+		$pop 从数组头部删除一个元素
+db.t2.update({name:"jerry"},{$pop:{likes:-1}}) 删除第1个值
+db.t2.update({name:"jerry"},{$pop:{likes:1}})  删除末尾的值
+
+		$pull 删除数组指定元素
+db.t2.update({name:"jerry"},{$pull:{likes:"e"}}) 是e的值 都删除
+db.t2.update({name:"jerry"},{$pull:{likes:"c"}})
+
+	2.4 删除 remove()
+		db.t2.remove({})	删除所有文档，索引不会被删除	  
+		db.t2.count()
+		show tables
+		rs1:PRIMARY> db.user.count()
+		db.user.remove({uid:{$gt:100}})
+		db.user.count()
+		
+		db.t2.drop() 删除文档同时删除索引
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
