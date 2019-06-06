@@ -1,0 +1,388 @@
+							nosql
+一、部署NOSQL服务
+/etc/redis/6379.conf
+/var/log/redis_6379.log
+
+1.1tar -xf redis-4.0.8.tar.gz 
+cd redis-4.0.8/
+　　yum -y install gcc
+make && make install
+　　cd utils/
+　　./install_server.sh
+2.查看服务状态
+netstat -ntulp | grep :6379
+tcp        0      0 127.0.0.1:6379          0.0.0.0:*               LISTEN      8025/redis-server 1 
+1.4连接服务
+[root@mysql50 utils]# redis-cli 
+1.5启动/停止服务管理
+[root@mysql50 utils]# /etc/init.d/redis_6379 stop
+[root@mysql50 utils]# /etc/init.d/redis_6379 start
+[root@mysql50 utils]# netstat -ntulp | grep :6379
+1.6存/取数据
+[root@mysql50 utils]# redis-cli
+127.0.0.1:6379> keys *			＃查看全部
+127.0.0.1:6379> set school tarena	＃给school赋值
+127.0.0.1:6379> keys *			＃查看全部
+127.0.0.1:6379> get school		＃查看school的值
+127.0.0.1:6379> set keyname keyvalue	＃存储
+OK	
+127.0.0.1:6379> get keyname		＃获取
+"keyvalue"
+127.0.0.1:6379> select 1			＃切换库
+OK
+127.0.0.1:6379[1]> select 0
+OK
+127.0.0.1:6379> select 3
+OK
+127.0.0.1:6379[3]> select 0
+OK
+127.0.0.1:6379> keys *			＃打印所有变量
+1) "keyname"
+2) "school"
+127.0.0.1:6379> keys ???			#查看三个字符的边变量
+127.0.0.1:6379> keys keyname		＃打印指定变量
+1) "keyname"
+127.0.0.1:6379> keys keyvalue		
+(empty list or set)
+127.0.0.1:6379> exists keyname		＃测试是否存在
+(integer) 1					＃1为存在，０为不存在
+127.0.0.1:6379> exists keyvalue	＃
+(integer) 0
+127.0.0.1:6379> ttl keyname		＃查看生存时间，-1为永久生效
+(integer) -1
+127.0.0.1:6379> type keyname		＃查看类型
+string	＃用set设置的变量都是字符类型
+127.0.0.1:6379> move sex 1		＃把sex变量移动到1库上
+127.0.0.1:6379> select 1			＃切换到１库
+127.0.0.1:6379[1]> keys *		＃查询１库的变量
+127.0.0.1:6379> expire keyname 10	＃设置有效时间单位是秒，10为10秒
+(integer) 0
+127.0.0.1:6379[1]> del sex		＃删除sex变量
+127.0.0.1:6379> del 0			＃删除0库的所有变量
+(integer) 0
+127.0.0.1:6379> keys *			
+(empty list or set)
+127.0.0.1:6379> flushall			＃删除所有变量
+OK
+127.0.0.1:6379> save			＃保存所有数据，到硬盘上
+OK
+127.0.0.1:6379> shutdown			＃关闭redis服务
+[root@mysql50 ~]# netstat -nutlp | grep 6379	＃服务已关闭
+
+修改Redis服务运行参数
+－配置文件解析	/etc/redis/6379.conf
+[root@mysql50 ~]# cp /etc/redis/6379.conf /root/	#备份
+[root@mysql50 ~]# vim /etc/redis/6379.conf 	＃修改配置文件
+常见参数：
+bind 192.168.4.51 //设置服务使用的ip
+port 6351 //更改端口号
+requirepass 123456 //设置密码
+tcp-backlog 511	//tcp连接总数
+timeout 0		//连接超时时间，单位秒
+tcp-keepalive 300	//长连接时间
+daemonize yes	//守护进程方式运行
+databases 16	//数据库个数
+logfile /var/log/redis_6379.log	//日志文件
+maxclients 10000				//并发连接数量
+
+－内存管理
+535 ############################## MEMORY MANAGEMENT ################################
+下面的为内存配置项
+591 # maxmemory-policy noeviction	＃使用内存清除的策略，默认为noeviction，永不清除
+
+内存清除策略
+volatile-lru 	//最近最少使用（针对设置了ttl的key）
+allkeys-lru		//删除最少使用的key
+volatile-lfu	／／不知道，找度娘吧
+allkeys-lfu		／／不知道，找度娘吧
+volatile-random	／／在设置了TTL的key里随机移除
+allkeys-random	／／随机移除key
+volatile-ttl	／／移除最近过期的key
+noeviction		／／不删除，写满时报错
+
+选项默认设置
+ 560 # maxmemory <bytes>			／／最大内存
+ 591 # maxmemory-policy noeviction	／／定义使用策略
+ 602 # maxmemory-samples 5		／／选取模板数据的个数（针对lru和ttl策略）
+
+－设置登录密码
+	/etc/redis/6379.conf
+501  requirepass 123456
+
+-登入数据库
+[root@mysql50 ~]# redis-cli
+127.0.0.1:6379> ping 
+(error) NOAUTH Authentication required.
+127.0.0.1:6379> auth 123456
+OK
+127.0.0.1:6379> ping
+PONG
+
+			修改ip地址、端口
+	/etc/redis/6379.conf
+ 　93 port 6350
+  70 bind 192.168.4.50
+＃修改了ip地址之后都要这样暂停服务
+[root@mysql50 ~]# redis-cli -a 123456 shutdown
+
+＃启动服务
+[root@mysql50 ~]# /etc/init.d/redis_6379 start
+[root@mysql50 ~]# netstat -utnlp | grep 6350
+[root@mysql50 ~]# ps -C redis-server
+[root@mysql50 ~]# redis-cli 	＃连接失败
+
+＃连接数据库
+[root@mysql50 ~]# redis-cli -h 192.168.4.50 -p 6350 -a 123456
+192.168.4.50:6350> ping
+PONG
+192.168.4.50:6350> keys *
+
+[root@mysql50 ~]# redis-cli -h 192.168.4.50 -p 6350 -a 123456 shutdown
+＃暂停服务
+[root@mysql50 ~]# netstat -utnlp | grep 6350
+
+－修改/etc/init.d/redis_6379 脚本代码　
+使其可以停止设置了ip端口和密码的redis服务
+[root@mysql50 ~]# vim /etc/init.d/redis_6379 
+[root@mysql50 ~]# /etc/init.d/redis_6379 start
+ 43             $CLIEXEC -h 192.168.4.50 -p 6350 -a 123456 shutdown
+
+－部署LNMP+Redis　（在192.168.4.56配置lnmp服务）
+[root@mysql56 10.nosql]# cd lnmp/
+[root@mysql56 lnmp]# yum -y install pcre-devel zlib-devel gcc
+[root@mysql56 lnmp]# tar -zvxf nginx-1.12.2.tar.gz
+[root@mysql56 lnmp]# cd nginx-1.12.2/
+[root@mysql56 nginx-1.12.2]# ./configure && make && make install
+[root@mysql56 nginx-1.12.2]# ls /usr/local/nginx/
+[root@mysql56 lnmp]# yum -y install php-fpm-5.4.16-42.el7.x86_64.rpm
+[root@mysql56 lnmp]# systemctl restart php-fpm
+[root@mysql56 lnmp]# netstat -ntulp | grep 9000
+[root@mysql56 lnmp]# vim +65 /usr/local/nginx/conf/nginx.conf
+location ~ \.php$ {
+            root           html;
+            fastcgi_pass   127.0.0.1:9000;
+            fastcgi_index  index.php;
+        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+            include        fastcgi.conf;
+        }
+
+[root@mysql50 lnmp]# /usr/local/nginx/sbin/nginx -t	#启动配置文件的语法是否有误
+
+root@mysql50 lnmp]# /usr/local/nginx/sbin/nginx		＃启动服务
+[root@mysql50 lnmp]# netstat -ntulp | grep 80
+
+[root@mysql56 lnmp]# vim /usr/local/nginx/html/test.php
+<?php echo "hello boy!!"; ?>
+
+＃部署LNMP环境（网站运行平台）
+安装源码nginx服务
+yum -y install gcc pcre-devel zlib-devel openssl-devel
+tar -zvxf nginx-1.12.2.tar.gz 
+cd nginx-1.12.2/
+./configure && make && make install
+[root@mysql50 nginx-1.12.2]# /usr/local/nginx/sbin/nginx
+
+＃配置php支持Redis
+[root@mysql50 lnmp_soft]# yum -y install php
+[root@mysql50 10.nosql]# yum -y install php-devel-5.4.16-42.el7.x86_64.rpm
+[root@mysql50 phpredis-2.2.4]# tar -xzvf php-redis-2.2.4.tar.gz 
+[root@mysql50 phpredis-2.2.4]# cd phpredis-2.2.4/
+[root@mysql50 phpredis-2.2.4]# phpize
+[root@mysql50 phpredis-2.2.4]# ./configure --with-php-config=/usr/bin/php-config && make && make install
+[root@mysql50 phpredis-2.2.4]# ls /usr/lib64/php/modules/
+
+[root@mysql50 phpredis-2.2.4]# vim /etc/php.ini 
+728 extension_dir = "/usr/lib64/php/modules/"
+730 extension = "redis.so"	#加模块	
+[root@mysql50 phpredis-2.2.4]# systemctl restart php-fpm
+[root@mysql50 phpredis-2.2.4]# php -m | grep -i redis	＃查看有没有redis模块
+
+三、创建redis集群
+	3.1  部署管理主机（管理集群）192.168.4.51 
+		  ]# scp -r redis-cluster root@192.168.4.51:/root/
+		1 装包
+		 ]# yum -y  install ruby rubygems
+		 ]# cd /root/redis-cluster
+		 ]# yum -y  install ruby-devel-2.0.0.648-30.el7.x86_64.rpm
+		 ]# gem install redis-3.2.1.gem
+		2 创建管理集群命令(使用ruby语言编写的)
+		 ]#cd redis-4.0.8/src/
+		 ]#mkdir /root/bin
+		 ]#cp redis-trib.rb /root/bin/redis-trib
+		 ]# chmod +x /root/bin/redis-trib
+
+		3 查看命令选项
+		 ]# redis-trib help
+					配置到09：47
+	3.2  在管理主机上执行：
+				1 创建命令
+			[root@host51 ~]# redis-trib create  --replicas 1 \
+ 192.168.4.51:6351 192.168.4.52:6352 192.168.4.53:6353 \
+ 192.168.4.54:6354 192.168.4.55:6355 192.168.4.56:6356
+
+>>> Creating cluster
+>>> Performing hash slots allocation on 6 nodes...
+Using 3 masters:
+192.168.4.51:6351
+192.168.4.52:6352
+192.168.4.53:6353
+Adding replica 192.168.4.55:6355 to 192.168.4.51:6351
+Adding replica 192.168.4.56:6356 to 192.168.4.52:6352
+Adding replica 192.168.4.54:6354 to 192.168.4.53:6353
+M: da0ac33807643df3a1cca0df501ca2c9e8897434 192.168.4.51:6351
+   slots:0-5460 (5461 slots) master
+M: edf0730d231a8639aef52ab16527e82c4bd39917 192.168.4.52:6352
+   slots:5461-10922 (5462 slots) master
+M: e045cf4d02255e74d0e4e51ae95be328e86515a3 192.168.4.53:6353
+   slots:10923-16383 (5461 slots) master
+S: d988f4f9e39a9f9a1c9b5fdfb867eeeb797ea9c0 192.168.4.54:6354
+   replicates e045cf4d02255e74d0e4e51ae95be328e86515a3
+S: 652312d6c52ebd92e0ee1081f3a91c5af68b0711 192.168.4.55:6355
+   replicates da0ac33807643df3a1cca0df501ca2c9e8897434
+S: fe74d95757716e224db694ca7b4ea45c2102f6f9 192.168.4.56:6356
+   replicates edf0730d231a8639aef52ab16527e82c4bd39917
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join....
+>>> Performing Cluster Check (using node 192.168.4.51:6351)
+M: da0ac33807643df3a1cca0df501ca2c9e8897434 192.168.4.51:6351
+   slots:0-5460 (5461 slots) master
+   1 additional replica(s)
+S: d988f4f9e39a9f9a1c9b5fdfb867eeeb797ea9c0 192.168.4.54:6354
+   slots: (0 slots) slave
+   replicates e045cf4d02255e74d0e4e51ae95be328e86515a3
+M: edf0730d231a8639aef52ab16527e82c4bd39917 192.168.4.52:6352
+   slots:5461-10922 (5462 slots) master
+   1 additional replica(s)
+S: fe74d95757716e224db694ca7b4ea45c2102f6f9 192.168.4.56:6356
+   slots: (0 slots) slave
+   replicates edf0730d231a8639aef52ab16527e82c4bd39917
+M: e045cf4d02255e74d0e4e51ae95be328e86515a3 192.168.4.53:6353
+   slots:10923-16383 (5461 slots) master
+   1 additional replica(s)
+S: 652312d6c52ebd92e0ee1081f3a91c5af68b0711 192.168.4.55:6355
+   slots: (0 slots) slave
+   replicates da0ac33807643df3a1cca0df501ca2c9e8897434
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+[root@host51 ~]# 
+
+重新创建集群，方法
+51-56  
+]# /etc/init.d/redis_6379 stop
+]# rm -rf /var/lib/redis/6379/*
+]# /etc/init.d/redis_6379 start
+]# netstat -utnlp  | grep redis-server
+
+51]# 执行创建集群的命令
+
+				2 查看集群信息
+					2.1 连接任意一台redis服务器查看集群
+					>cluster info 集群信息
+					>cluster nodes 主机信息
+					2.2 在管理主机上使用脚本查看
+					]# redis-trib info 192.168.4.52:6352 统计信息
+					]# redis-trib check 192.168.4.52:6352 详细信息
+
+				3 在客户端50访问集群
+ 				50]# redis-cli  -c -hip地址  -p端口 
+				]# redis-cli -c  -h 192.168.4.55  -p 6355
+				> set  x  101
+				> set  y  102
+				> set  z  102
+				50]# redis-cli -c  -h 192.168.4.52  -p 6352
+				> keys *
+				> get x
+				> get y
+
+
+				4 测试集群功能
+				  4.1 集群中的主服务器宕机后，对应的从服务器                                       会自动升级为主库
+
+				  4.2 宕机的主服务器启后，自动配置为 当前主建					   服务器的从库 并自动同步宕机期间的数据
+
+				5 集群存取数据工作原理
+
+#集群管理
+[root@mysql51 ~]# redis-trib.rb check 192.168.4.56:6356
+[root@mysql51 ~]# redis-trib.rb info 192.168.4.56:6356
+192.168.4.52:6352 (93e14c4e...) -> 1 keys | 5462 slots | 1 slaves.
+192.168.4.53:6353 (c712a22e...) -> 1 keys | 5461 slots | 1 slaves.
+192.168.4.51:6351 (6cf67159...) -> 0 keys | 5461 slots | 1 slaves.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

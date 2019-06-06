@@ -1,0 +1,340 @@
+基础:
+*使用search命令搜索镜像
+docker search ＋搜索的镜像
+命令在docker hub中搜索镜像
+
+*使用pull命令下载镜像
+从docker hub下载Ubuntu镜像
+docker pull ubuntu:latest
+命令格式:docker pull <镜像名称><标签>
+
+*使用images命令列出镜像目录
+列出本地主机已经下载的镜像
+docker images
+
+*使用run命令创建容器
+使用镜像创建容器后运行bash shell
+docker run -i -t --name hello ubuntu /bin/bash
+命令格式:docker run <选项><镜像名称><要运行的文件>
+-使用-i -t选项可以在运行bash shell中进行输入与输出
+-使用--name选项可以制定容器名称.若不指定名称,docker会自动生成名称病进行指定
+
+*使用ps命令查看容器列表(包括已停止的容器)
+docker ps -a
+
+*使用start命令启动容器
+docker start hello
+命令格式:docker start <容器名称>也可以使用容器id代替容器名称
+
+*使用restart命令重启容器
+docker restart hello
+命令格式:docker restart <容器名称>也可以使用容器id代替容器名称
+
+*使用attach命令连接容器
+docker attach hello
+命令格式:docker attach <容器名称>也可以使用容器id代替容器名称
+-运行/bin/bash也能输入命令,但是如果运行DB或服务器应用程序讲无法进行输入,只能看到输出
+-在bash shell输入exit终止容器,若依次输入ctrl+P.ctrl+Q,则不会终止容器只退出
+
+*使用exec命令从外部运行容器内的命令
+-当容器处于运行状态时,也可以不通过/bin/bash从外部运行容器内的命令
+
+*使用stop命令终止容器
+docker stop hello
+-命令格式:docker stop <容器名称>
+
+*使用rm命令删除容器
+docker rm hello
+-命令格式docker rm <容器名称>
+
+*使用rmi命令删除镜像
+docker rmi ubuntu:latest
+命令格式:docker rmi <镜像名称>:<标签>
+
+*编写dockerfile
+dockerfile是镜像设置文件.docker中设置的内容用于创建镜像
+#创建目录保存dockerfile文件
+-mkdir example
+-cd example
+vim dockerfile
+FROM ubuntu:14.04
+MAINTINER Foo Bar <foo@bar.com>
+
+RUN agt-get update
+RUN apt-get install -y nginx
+RUN echo "\ndaemon off;" >> /etc/nginx/nginx.conf
+RUN chown -R www-data:www-data /var/lib/nginx
+
+VOLUME ["/data", "/etc/nginx/site-enabled", "/var/1og/nginx"]
+WORKDIR /etc/nginx
+
+CMD ["nginx"]
+
+EXPOSE 80
+EXPOSE 443
+-from:指定基于的基础镜像,dockerfile是基于已创建的镜像来创建镜像,指令格式:<镜像名称>:<标签>
+-MAINTINER:维护者信息
+-RUN:运行shell脚本或者命令
+-VOLUME:要与主机共享的目录,也可以在docker run命令中使用-v选项进行设置.
+例如:-v /root/data:/data 将主机的/root/data目录链接到docker容器的/data目录
+CMD:指定容器启动时执行的文件或脚本
+
+*使用build命令创建镜像
+在example目录中执行:
+docker build --tag hello:0.1
+命令格式:docker build <选项><docker 路径>,--tag选项可以设置镜像名称与标签
+
+*查看所有镜像,hello:0.1镜像已经创建完成
+docker images
+
+*运行创建好的hello:0.1镜像
+docker run --name hello-nginx -d -p 80:80 -v /root/data:/data hello:0.1
+#-d选项在后台运行容器
+#-p 80:80选项将主机的80端口与容器的80端口连接起来,并暴露到外部.这样设置后,连接http://<主机 IP>:80
+就会连接到容器的80号端口
+#-v /root/data:/data 选项将主机的/root/data 目录连接到容器的/data目录,
+若将文件放入/root/data 目录,则能从容器读取相应文件
+
+*浏览器访问:http:<主机ip>:80,出现welcome to nginx!页面
+
+*使用history命令查看镜像历史
+docker history hello:0.1
+命令格式:docker history <镜像名称>:<标签>
+#查看hello:0.1镜像的历史命令
+
+*使用cp命令复制文件
+docker cp hello-nginx:/etc/nginx/nginx.conf ./
+命令格式:docker cp <容器名称>:<路径><主机路径>
+
+*使用commit命令从容器的修改中创建容器
+docker commit -a "Foo Bar <foo@bar.com>" -m "add hello.txt" hello-nginx hello:0.2
+命令格式:docker commit <选项><容器名称><镜像名称>:<标签>
+-a "Foo Bar <foo@bar.com>" 与 -m "add hello.txt"选项用于设置提交的用户与注册信息.
+将hello-nginx容器创建为hello:0.2镜像
+*显示镜像列表
+docker images
+-成功创建hello:0.2镜像
+
+*使用diff命令检查容器文件的修改
+docker diff hello-nginx
+命令格式:docker diff <容器名称>, A为添加的文件,c为修改的文件, D为删除的文件
+
+*使用imspect命令查看详细信息
+-docker inspect <镜像名称>命令显示镜像与容器的详细信息
+docker inspect hello-nginx
+
+*搭建docker私有仓库
+-docker命令默认使用docker Hub
+-docker push命令可以将镜像上传到注册的服务器,使用docker pull命令可以下载镜像
+
+*存储镜像数据到本地
+先下载docker注册镜像
+docker pull registry:latest
+
+*以容器运行registry:latest镜像
+docker run -d -p 5000:5000 --name hello-registry -v /tmp/registry:/tmp/registry registry:latest
+-运行后,镜像文件存储到主机的/tmp/registry目录
+
+*使用push命令上传镜像
+将hello:0.1镜像上传到私有仓库
+docker tag hello:0.1 localhost:5000/hello:0.1
+命令格式:docker tag<镜像名称>:<标签> <dockerhub>/<镜像名称>:<标签>
+
+*上传hello:0.1镜像
+docker push localhost:5000/hello:0.1
+
+*下载镜像
+docker pull <dockerhub>/hello:0.1
+
+*存储镜像数据到Amazon S3
+*先下载镜像
+docker　pull registry:latest
+
+*以容器运行registry:latest镜像
+docker run -d -p 5000:5000 --name 时-registry \
+-e SETTINGS_FLAVOR=s3 \
+-e AWS_BUCKET=examplebucket10 \
+-e STORAGE_PATH=/registry  \
+-e AWS_KEY=aws访问秘钥  \
+-e AWS_SECRET=设置AWS秘密秘钥  \
+registry
+-SETTINGS_FLAVOR:镜像存储方法设置为s3
+-AWS_BUCKET:定义存储镜像数据的S3 bucket名称
+-STORAGE_PATH:镜像数据存储路径,设置为/registry
+-AWS_KEY=aws访问秘钥  
+-AWS_SECRET=设置AWS秘密秘钥  
+
+*连接docker的容器
+-使用docker创建镜像时,虽然web服务器.DB等所需程序都可以安装其中,但通过要将这些程序分别生成镜像.像这样分别生成镜像,创建容器是,经常要连接相邻的容器.比如web服务器vixu连接DB进行数据交换
+-连接这些Docker容器时,要在docker run命令中使用--link选项.首先以容器运行DB镜像,此处要使用MongoDB
+*先使用docker run命令创建mongodb容器
+docker run --name db -d mongo
+-将容器名称设置为db
+docker run --name web -d -p 80:80 --link "db:db nginx
+命令格式:docker run命令中,连接选项的格式为--link<容器名称>:<别名>,
+
+*输出容器列表
+docker ps
+
+]# cat `docker inspect -f "{{.HostsPath}}" web`	#查看db容器的IP地址
+
+*浏览器访问:db容器的IP地址:27217/exampledb容器的ip地址
+
+*连接到其他服务器的Docker容器
+
+*创建dockerfile文件
+CMD env | grep _Tcp= | \
+sed 's /.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat \
+TCP-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/' \
+ | sh && top
+*这段shell脚本运行docker run命令是利用传递的环境变量执行socat
+
+EXAMPLE_PORT=tcp://192.168.0.10:1234
+EXAMPLE_PORT_1234_TCP_ADDR=192.168.0.10
+EXAMPLE_NAME=/example_ambassador/example
+HOSTNAME=0vf479687cb0
+EXAMPLE_PORT_1234_TCP_PORT=1234
+HOME=/
+EXAMPLE_PORT_1234_TCP_PROTO=tcp
+EXAMPLE_PORT_1234_TCP=tcp://192.168.0.10:1234
+TERM=xterm
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PWD=/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
