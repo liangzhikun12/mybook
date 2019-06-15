@@ -1,0 +1,56 @@
+*安装虚拟化服务器平台
+可选功能:
+virt-install   #系统安装工具
+virt-manager   #图形管理工具
+virt-v2v 	   #虚拟机迁移工具
+virt-p2v	   #物理机迁移工具
+
+*虚拟化平台安装
+[root@zabbixserver ~]# yum -y install qemu-kvm libvirt-daemon libvirt-client libvirt-daemon-driver-qemu
+[root@zabbixserver ~]# systemctl restart libvirtd
+
+1）列出当前正在运行的虚拟机
+root@room9pc01 ~]# virsh list 
+[root@room9pc01 nsd1902]# virsh list --all
+
+virsh基本管理操作
+#查看虚拟机的信息
+[root@room9pc01 ~]# virsh dominfo node1                    //查看node1的信息
+1）启动虚拟机
+[root@room9pc01 ~]# virsh start node1
+2）重启虚拟机
+[root@room9pc01 ~]# virsh reboot node1
+3）强制关闭虚拟机
+[root@room9pc01 ~]# virsh destroy node1
+4）设置虚拟机开机自动运行
+[root@room9pc01 ~]# virsh autostart node1
+5)连接虚拟机
+[root@room9pc01 ~]# virsh console node1
+
+virsh基本管理操作
+[root@room9pc01 nsd1902]# virsh domblklist node1  #查询虚拟机node1硬盘的文件目录
+vda        /var/lib/libvirt/images/node1.img
+[root@room9pc01 nsd1902]# qemu-img info /var/lib/libvirt/images/node1.img   #查询虚拟机node1硬盘的详细信息 
+[root@room9pc01 nsd1902]# virsh blockresize --path /var/lib/libvirt/images/node1.img  --size 50G node1
+#把磁盘扩展到50G
+
+qemu-img基本操作管理
+
+[root@room9pc01 ~]# qemu-img create -f qcow2 disk.img 50G    //qcow2为创建的格式
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

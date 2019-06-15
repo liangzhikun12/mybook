@@ -1,0 +1,176 @@
+虚拟程度：
+   完全，部分，硬件辅助（CPU）
+KVM
+   虚拟机组成：
+       KVM: 内核模块，需要CPU支持，采用硬件辅助技术  # lsmod 可查到
+       QEMU: 虚拟化仿真工具， 通过ioctl与内核kvm交互完成虚拟化支持  # ps -efww 可看到
+       Libvirt: 虚拟化管理接口和工具， 提供用户交互程序virsh , virt-install, virt-manager, virt-view
+
+       一个XML配置声明文件： /etc/libvirt/qemu/
+       一个镜像文件： /var/lib/libvirt/images/
+
+
+   安装软件：
+      yum -y install qemu-kvm(仿真支持) libvirt-daemon(后台守护进程) libvirt-client（用户交互程序） livirt-daemon-driver-qemu（驱动）
+      systemctl restart libvirtd
+
+      virt-install
+      virt-manager
+
+   管理命令：
+      virsh list --all                                       列出虚拟机
+            start                                            启动
+            shutdown                                         正常停止
+            reboot                                           重启
+            destroy                                          强制关机
+            define                                           创建虚拟机
+            undefine                                         删除虚拟机
+            console                                          连接虚拟机终端
+            edit                                             修改虚拟机配置
+            autostart [--disable]                            设置开机自启动
+            domiflist                                        查看虚拟机网卡信息
+            domblklist                                       查看虚拟机硬盘镜像信息
+            blockresize [--path {path}] [--size {size}]      磁盘扩容(开机情况下)
+            net-list --all                                   列出虚拟网络
+            net-start                                        启动虚拟网络
+            net-destroy                                      强制停止虚拟网络
+            net-define                                       创建虚拟网络
+            net-undefine                                     删除虚拟网络
+            net-edit                                         编辑网络定义
+            net-autostart                                    设置网络开机自启
+
+      qemu-img create  -f qcow2 [-b {template}] {img_name} {size}       创建磁盘（支持raw,qcow2(cow写时复制，修改文件是复制到前端存储，修改后直接读取前端，后端始终是只读的不可修改，达到修改成功效果),vdi,vmdk等格式）
+               convert                                                  转换磁盘
+               info   {img_path}                                        查看磁盘信息(当前大小，最大大小，文件格式等)
+               resize                                                   磁盘扩容
+
+      xml管理:
+          主机管理：
+            <domain type='kvm'>
+              <name>my_machine</name>                     # 定义名字
+              <uuid>5d19391b-67cd-4324-9c48-edc4663c171b</uuid>
+              <memory unit='KiB'>2000000</memory>         # 内存
+              <currentMemory unit='KiB'>2000000</currentMemory>
+              <vcpu placement='static'>3</vcpu>          # cpu数量
+              <os>
+                <type arch='x86_64' machine='pc-i440fx-rhel7.0.0'>hvm</type>
+                <boot dev='hd'/>
+                <bootmenu enable='yes'/>
+                <bios useserial='yes'/>
+              </os>
+              <features>
+                <acpi/>
+                <apic/>
+              </features>
+              <cpu mode='host-passthrough' check='none'/>
+              <clock offset='localtime'/>
+              <on_poweroff>destroy</on_poweroff>
+              <on_reboot>restart</on_reboot>
+              <on_crash>restart</on_crash>
+              <devices>
+                <emulator>/usr/libexec/qemu-kvm</emulator>
+                <disk type='file' device='disk'>
+                  <driver name='qemu' type='qcow2'/>
+                  <source file='/var/lib/libvirt/images/my_machine.img'/>     # 模板后端镜像
+                  <target dev='vda' bus='virtio'/>
+                  <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
+                </disk>
+                <controller type='usb' index='0' model='piix3-uhci'>
+                  <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
+                </controller>
+                <controller type='pci' index='0' model='pci-root'/>
+                <controller type='virtio-serial' index='0'>
+                  <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+                </controller>
+                <interface type='bridge'>
+                  <mac address='52:54:00:37:41:99'/>
+                  <source bridge='vbr'/>                                  # 网络连接网卡
+                  <model type='virtio'/>
+                  <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
+                </interface>
+                <serial type='pty'>
+                  <target type='isa-serial' port='0'>
+                    <model name='isa-serial'/>
+                    </target>
+                  </serial>
+                  <console type='pty'>
+                    <target type='serial' port='0'/>
+                  </console>
+                  <channel type='unix'>
+                    <target type='virtio' name='org.qemu.guest_agent.0'/>
+                    <address type='virtio-serial' controller='0' bus='0' port='1'/>
+                  </channel>
+                  <input type='mouse' bus='ps2'/>
+                  <input type='keyboard' bus='ps2'/>
+                  <memballoon model='virtio'>
+                    <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
+                  </memballoon>
+                </devices>
+              </domain>
+
+
+
+            网络管理：
+                <network>
+                <name>vbr</name>
+                <uuid>bc8c51cf-34d7-4fa4-bde9-f55b7c025421</uuid>
+                <forward mode='nat'/>
+                <bridge name='vbr' stp='on' delay='0'/>
+                <mac address='52:54:00:35:6e:56'/>
+                <domain name='localhost' localOnly='no'/>
+                <ip address='192.168.1.254' netmask='255.255.255.0'>
+                 <dhcp>
+                   <range start='192.168.1.100' end='192.168.1.200'/>
+                 </dhcp>
+                </ip>
+                </network>
+
+
+      磁盘格式：
+            RAW:io高，占用空间大，不支持压缩，后端盘复用，快照
+            QCOW2:默认标准格式，io较高，占用空间少，支持压缩，后端盘复用，快照
+
+
+      console进去后修改ip
+         vim /etc/sysconfit/network-scripts/ifcfg-eth0
+              DEVICE="eth0"
+              ONBOOT="yes"
+              NM_CONTROLLED="no"
+              TYPE="Ethernet"
+              BOOTPROTO="static"
+              IPADDR="192.168.1.50"
+              NETMASK="255.255.255.0"
+              GATEWAY="192.168.1.254"
+
+
+      根分区扩容：
+        virsh start {machine}                                        # 先启动虚拟机
+        virsh domblklist {machine}                                   # 查找块设备路径
+        qemu-img info {blk_path}                                     # 找到块设备的信息
+        virsh blockresize --path {blk_path} --size {size} {machine}  # 完成磁盘扩容
+        virsh console {machine}                                      # 进入虚拟机
+            LANG=C                                                   # 环境设置英语，与en_US类似
+            growpart /dev/vda 1                                      # 分区扩容 /vda1
+            xfs_growfs /                                             # 文件系统扩容
+
+      手动创建虚拟机：
+        cp /var/lib/libvirt/images/.node_base.xml /etc/libvirt/qemu/my_machine.xml   # 模板可以从官方文件拷贝
+        cd /var/lib/libvirt/images
+        qemu-img create -f qcow2 -b .node_base.qcow2 my_machine.img 30G       # 基于模板创建磁盘文件
+	  virsh blockresize --path /var/lib/libvirt/images/node1.img  --size 50G node1
+		#扩展硬盘
+        vim /etc/libvirt/qemu/my_machine.xml
+            修改 name, disk.source
+        virsh define /etc/libvirt/qemu/my_machine.xml
+        virsh start my_machine
+
+
+云计算
+    从公共计算资源池提供所需基本计算资源
+    IaaS 基础设施即服务，提供所有计算基础设施的利用，用户能部署运行任意软件包括操作系统，通常分公有云，私有云，混合云
+    PaaS 平台即服务， 以服务器平台或者开发环境提供服务，能对平台提供技术支持，甚至系统开发，优化，也可以理解为中间件即服务
+    SaaS 软件即服务， 用户不用再购买软件而是直接租用基于web开发的软件，不用对软件维护
+
+    OpenStack
+        一种 IaaS 解决方案
+        

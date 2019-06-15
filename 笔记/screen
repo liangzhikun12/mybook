@@ -1,0 +1,6 @@
+在每个screen session 下，所有命令都以 ctrl+a(C-a) 开始
+C-a shift+ | -> 竖屏切
+C-a shift+s -> 横屏切  
+C-a shift+X -> 关闭窗口
+C-a tab  -> 转屏
+C-a c -> 恢复命令行模式

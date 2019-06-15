@@ -1,0 +1,95 @@
+*使用kubeadm工具快速安装kubernetes集群
+*配置yum源
+vim /etc/yum.repos.d/kuebrnetes
+[kuebrnetes]
+name=kuebrnetes
+baseurl=http://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64/
+enabled=1
+gpgcheck=0
+
+*安装kubeadm相关工具
+--创建初始化文件
+kubeadm config print init-defaults > init.default.yaml
+
+--修改配置文件
+vim init.default.yaml
+apiVersion: kubeadm.k8s.io/v1beta1
+kind: ClusterConfiguration
+imageRepository: docker.io/dustise
+kubernetesVersion: v1.14.0
+networking:
+  podSubnet: "192.168.0.0/16"
+
+*用配置文件,下载kubernetes镜像
+kubeadm init --config=init.default.yaml   *运行成功后用最后一行的值来编写join-config.yaml文件
+如:
+kubeadm join 192.168.1.147:6443 --token gz4v0n.out7us45xvgypuqp \
+    --discovery-token-ca-cert-hash sha256:bbeffbd673eac0de0df8c8f4fca67426316a063a5397489b57fa8d473d51c672 
+
+*运行kubeadm init命令安装Master
+kubeadm init --config=init.default.yaml
+
+*复制配置文件到用户的家目录下:
+mkdir -p $HOME/.kube
+cp -i /etc/kubernetes/admin.conf /root/.kube/config
+chown root:root /root/.kube/config 
+
+*查看kubbeadm-config的ConfigMap对象
+kubectl get -n kube-system configmap
+可能会出现报错:
+The connection to the server localhost:8080 was refused - did you specify th
+试一下运行:
+echo "export KUBECONFIG=/etc/kubernetes/admin.conf" >> ~/.bash_profile
+source ~/.bash_profile
+
+*安装Node,加入集群
+--安装kubeadm和相关工具
+yum install kubelet kubeadm --disableexcludes=kubernetes
+
+*设置docker服务与kubelet服务开机自启
+systemctl enable docker && systemctl restart docker
+systemctl enable kubelet && systemctl restart kubelet
+
+*为kubeadm命令生成配置文件
+vim join-config.yaml
+apiVersion: kubeadm.k8s.io/v1beta1
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: 192.168.1.147:6443
+    token: gz4v0n.out7us45xvgypuqp
+    unsafeSkipCAVerification: true
+  t1sBootstrapToken: gz4v0n.out7us45xvgypuqp
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

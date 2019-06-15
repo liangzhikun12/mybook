@@ -2,6 +2,7 @@
 一、部署NOSQL服务
 /etc/redis/6379.conf
 /var/log/redis_6379.log
+/var/lib/redis/6379	#redis数据库目录
 
 1.1tar -xf redis-4.0.8.tar.gz 
 cd redis-4.0.8/
@@ -197,9 +198,229 @@ cd nginx-1.12.2/
 [root@mysql50 phpredis-2.2.4]# systemctl restart php-fpm
 [root@mysql50 phpredis-2.2.4]# php -m | grep -i redis	＃查看有没有redis模块
 
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+创建虚拟机192.168.4.51-56
+
+三、创建redis集群
+	3.1  部署管理主机（管理集群）192.168.4.51 
+		  ]# scp -r redis-cluster root@192.168.4.51:/root/
+		1 装包
+		 ]# yum -y  install ruby rubygems
+		 ]# cd /root/redis-cluster
+		 ]# yum -y  install ruby-devel-2.0.0.648-30.el7.x86_64.rpm
+		 ]# gem install redis-3.2.1.gem
+		2 创建管理集群命令(使用ruby语言编写的)
+		 ]#cd redis-4.0.8/src/
+		 ]#mkdir /root/bin
+		 ]#cp redis-trib.rb /root/bin/redis-trib
+		 ]# chmod +x /root/bin/redis-trib
+
+		3 查看命令选项
+		 ]# redis-trib help
+					配置到09：47
+	3.2  在管理主机上执行：
+				1 创建命令
+			[root@host51 ~]# redis-trib create  --replicas 1 \
+ 192.168.4.51:6351 192.168.4.52:6352 192.168.4.53:6353 \
+ 192.168.4.54:6354 192.168.4.55:6355 192.168.4.56:6356
+
+>>> Creating cluster
+>>> Performing hash slots allocation on 6 nodes...
+Using 3 masters:
+192.168.4.51:6351
+192.168.4.52:6352
+192.168.4.53:6353
+Adding replica 192.168.4.55:6355 to 192.168.4.51:6351
+Adding replica 192.168.4.56:6356 to 192.168.4.52:6352
+Adding replica 192.168.4.54:6354 to 192.168.4.53:6353
+M: da0ac33807643df3a1cca0df501ca2c9e8897434 192.168.4.51:6351
+   slots:0-5460 (5461 slots) master
+M: edf0730d231a8639aef52ab16527e82c4bd39917 192.168.4.52:6352
+   slots:5461-10922 (5462 slots) master
+M: e045cf4d02255e74d0e4e51ae95be328e86515a3 192.168.4.53:6353
+   slots:10923-16383 (5461 slots) master
+S: d988f4f9e39a9f9a1c9b5fdfb867eeeb797ea9c0 192.168.4.54:6354
+   replicates e045cf4d02255e74d0e4e51ae95be328e86515a3
+S: 652312d6c52ebd92e0ee1081f3a91c5af68b0711 192.168.4.55:6355
+   replicates da0ac33807643df3a1cca0df501ca2c9e8897434
+S: fe74d95757716e224db694ca7b4ea45c2102f6f9 192.168.4.56:6356
+   replicates edf0730d231a8639aef52ab16527e82c4bd39917
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join....
+>>> Performing Cluster Check (using node 192.168.4.51:6351)
+M: da0ac33807643df3a1cca0df501ca2c9e8897434 192.168.4.51:6351
+   slots:0-5460 (5461 slots) master
+   1 additional replica(s)
+S: d988f4f9e39a9f9a1c9b5fdfb867eeeb797ea9c0 192.168.4.54:6354
+   slots: (0 slots) slave
+   replicates e045cf4d02255e74d0e4e51ae95be328e86515a3
+M: edf0730d231a8639aef52ab16527e82c4bd39917 192.168.4.52:6352
+   slots:5461-10922 (5462 slots) master
+   1 additional replica(s)
+S: fe74d95757716e224db694ca7b4ea45c2102f6f9 192.168.4.56:6356
+   slots: (0 slots) slave
+   replicates edf0730d231a8639aef52ab16527e82c4bd39917
+M: e045cf4d02255e74d0e4e51ae95be328e86515a3 192.168.4.53:6353
+   slots:10923-16383 (5461 slots) master
+   1 additional replica(s)
+S: 652312d6c52ebd92e0ee1081f3a91c5af68b0711 192.168.4.55:6355
+   slots: (0 slots) slave
+   replicates da0ac33807643df3a1cca0df501ca2c9e8897434
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+[root@host51 ~]# 
+
+重新创建集群，方法
+ 51-56  
+]# /etc/init.d/redis_6379 stop
+]# rm -rf /var/lib/redis/6379/*
+]# /etc/init.d/redis_6379 start
+]# netstat -utnlp  | grep redis-server
+
+51]# 执行创建集群的命令
+
+				2 查看集群信息
+					2.1 连接任意一台redis服务器查看集群
+					>cluster info 集群信息
+					>cluster nodes 主机信息
+					2.2 在管理主机上使用脚本查看
+					]# redis-trib info 192.168.4.52:6352 统计信息
+					]# redis-trib check 192.168.4.52:6352 详细信息
+
+				3 在客户端50访问集群
+ 				50]# redis-cli  -c -hip地址  -p端口 
+				]# redis-cli -c  -h 192.168.4.55  -p 6355
+				> set  x  101
+				> set  y  102
+				> set  z  102
+				50]# redis-cli -c  -h 192.168.4.52  -p 6352
+				> keys *
+				> get x
+				> get y
 
 
-#测试配置
+				4 测试集群功能
+				  4.1 集群中的主服务器宕机后，对应的从服务器                                       会自动升级为主库
+
+				  4.2 宕机的主服务器启后，自动配置为 当前主建					   服务器的从库 并自动同步宕机期间的数据
+
+				5 集群存取数据工作原理
+
+#集群工作原理
+利用crc16算法
+数字%16384
+
+#集群管理
+[root@mysql51 ~]# redis-trib.rb check 192.168.4.56:6356
+[root@mysql51 ~]# redis-trib.rb info 192.168.4.56:6356
+192.168.4.52:6352 (93e14c4e...) -> 1 keys | 5462 slots | 1 slaves.
+192.168.4.53:6353 (c712a22e...) -> 1 keys | 5461 slots | 1 slaves.
+192.168.4.51:6351 (6cf67159...) -> 0 keys | 5461 slots | 1 slaves.
+
+*向集群中添加新redis服务器
+   #57运行redis服务且启用了集群模式 且本机没有数据
+	[root@mysql57 ~]# /etc/init.d/redis_6379 stop
+	815 cluster-enabled yes
+	823 cluster-config-file nodes-6379.conf
+	 829 cluster-node-timeout 5000
+	[root@mysql57 ~]# rm -rf /var/lib/redis/6379/*	#删除数据库全部数据
+
+   #在管理主机51上做如下配置:
+	#添加新主机
+	[root@mysql51 ~]# redis-trib.rb add-node 192.168.4.57:6357  192.168.4.53:6353
+	
+	#分配hash slots(哈希值)
+	[root@mysql51 ~]# redis-trib.rb reshard 192.168.4.53:6353
+	指定移出hash槽个数
+	指定接收槽主机ID
+	指定移出hash槽主机ID
+ 	最后:yes			
+	[root@mysql51 ~]# redis-trib.rb check 192.168.4.51:6351
+	[root@mysql51 ~]# redis-trib.rb info 192.168.4.51:6351
+
+*从库(把redis服务器58添加到集群里做从库)
+	#配置58运行redis服务且启用集群模式 且本机没有数据
+tar -xf redis-4.0.8.tar.gz 
+cd redis-4.0.8/
+yum -y install gcc
+make && make install
+cd utils/
+./install_server.sh
+修改配置文件的ip地址行跟端口号行
+
+*在管理主机51上做如下配置:
+#添加主机
+root@mysql51 ~]# redis-trib.rb add-node --slave 192.168.4.58:6358 192.168.4.51:6351
+#把58添加到51,做51的从库
+
+#查看集群信息
+[root@mysql51 ~]# redis-trib.rb info 192.168.4.51:6351
+[root@mysql51 ~]# redis-trib.rb check 192.168.4.51:6351
+
+*客户端50 连接主库57 存储数据
+[root@mysql50 ~]# redis-cli -c -h 192.168.4.57 -p 6357
+192.168.4.57:6357> keys *
+192.168.4.57:6357> set v1 99
+
+*客户端50 连接从库58 查看数据
+[root@mysql50 ~]# redis-cli -c -h 192.168.4.58 -p 6358
+192.168.4.57:6358> keys *
+
+*从集群中移除redis服务器(在管理主机51中操作)
+--移除从库						(集群里的主库)
+[root@mysql51 ~]# redis-trib.rb del-node 192.168.4.53:6353 93e14c4e87fe40d447bd00a0d7024a97e7a58bda
+(要移除的从库ID)
+
+[root@mysql51 ~]# redis-trib.rb check 192.168.4.53:6353
+[root@mysql51 ~]# redis-trib.rb info 192.168.4.53:6353
+
+--移除主库
+*释放占用的hash槽
+			1 释放主库占用的hash slot 槽
+			  ]# redis-trib.rb  reshard  192.168.4.51:6351 
+				指定移出hash槽个数
+				指定接收hash槽主机ID
+				指定移出hash槽主机ID
+				done
+				yes
+
+			2 移除主库
+  			 ]# redis-trib.rb  del-node   192.168.4.51:6351  \
+			 008840071433723a9621a28f2ca5552dd73cfc17
+			
+			3 查看信息
+  			 ]# redi s-trib.rb  info  192.168.4.51:6351 
+  			 ]# redis-trib.rb  check  192.168.4.51:6351 
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+
+
 
 
 

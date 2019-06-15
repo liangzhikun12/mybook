@@ -1,0 +1,773 @@
+						docker
+官网：https://hub.docker.com/
+docder-ce下载
+yum -y install wget 
+wget -O /etc/yum.repos.d/aliCentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+yum install -y yum-utils device-mapper-persistent-data lvm2
+yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+echo gpgcheck=0 >> /etc/yum.repos.d/docker-ce.repo
+yum makecache
+yum -y install docker-ce
+systemctl restart docker
+
+＃163镜像加速
+[root@room9pc01 ~]# vim /etc/docker/daemon.json 
+{
+"registry-mirrors": ["http://hub-mirror.c.163.com"]
+}
+
+[root@room9pc01 ~]# docker version
+ Version:         1.13.1
+#显示版本
+[root@room9pc01 ~]# docker info
+＃查看全部信息
+[root@room9pc01 ~]# docker search nginx
+＃搜索nginx镜像
+＃alpine
+alpine是专门构建小镜像的工具
+[root@room9pc01 ~]# docker image pull nginx:1.14-alpine
+＃下载alpine nginx镜像
+]#docker pull busbox
+＃下载busybox镜像
+[root@room9pc01 ~]# docker image ls
+＃显示所有镜像
+[root@room9pc01 ~]# docker image ls --no-trunc
+＃显示完整的详细信息
+]#docker container --help
+＃查看help帮助
+]#docker container ls -a
+ #查看全部容器
+]#docker container ls
+＃查看正在运行的容器
+]#docker network ls
+＃查看全部docker网卡
+[root@room9pc01 ~]# docker run --name b1 -it busybox:latest
+＃创建ｂ１容器，把busybox:latest镜像打包进去
+//在busybox做http网页
+/ # mkdir /data/html -p
+/ # vi /data/html/index.html
+wo shi busybox
+/ # httpd -f -h /data/html/
+
+[root@room9pc01 ~]# docker inspect b1
+＃查看容器b1的详细信息
+"IPAddress": "172.17.0.2",
+[root@room9pc01 ~]# curl 172.17.0.2
+＃访问b1容器的网页
+
+[root@room9pc01 ~]# docker start -i -a b1
+＃激活b1容器
+[root@room9pc01 ~]# docker kill b1
+＃终止b1容器
+[root@room9pc01 ~]# docker rm b1
+＃删除b1容器
+[root@room9pc01 ~]# docker run --name web1 -d nginx:1.14-alpine
+＃在后台运行nginx:1.14-alipine容器，-d是在后台运行的意思
+[root@room9pc01 ~]# docker inspect web1
+＃
+[root@room9pc01 ~]# curl 172.17.0.2
+＃访问nginx页面
+[root@room9pc01 ~]# docker run --name k1 -d redis:4-alpine
+＃在后台运行redis:4-alpine镜像，创建k1容器
+[root@room9pc01 ~]# docker ps
+＃查看全部容器
+[root@room9pc01 ~]# docker exec -it k1 /bin/sh
+＃-it指的是进入交互模式，在k1容器运行/bin/sh命令
+/data # ps
+PID   USER     TIME  COMMAND
+    1 redis     0:00 redis-server
+   13 root      0:00 /bin/sh
+   19 root      0:00 ps
+-docker image
+#docker镜像含有启动容器所需要的文件系统及其内容，因此，其用与创建并启动docker容器，
+采用分层构建机制，最底层为bootfs，其之为rootfs
+bootfs：用于系统引导的文件系统，包括bootloader和kernel，容器启动完成后会被卸载已节约内存资源
+rootfs:位于bootfs之上，表现为docker容器的根文件系统
+docker中，rootfs由内核挂载为“只读”模式，而后通过“联合挂载”技术额外挂载一个“可写”层
+—位于下层的镜像称为父镜像，最底层的称为基础镜像
+—最上层为可读写层，其下的均为只读层
+
+＃aufs：高级多层统一文件系统
+用于linux文件系统实现“联合挂载”
+
+＃docker　registry
+*启动容器时，docker daemon会试图从本地获取相关的镜像；本地镜像不存在时，其将从registry中下载该
+镜像并保存到本地
+
+＃docker　registry分类
+registry用于保存docker镜像，包括镜像的层次结构和元数据
+用户可自建registry，也可使用官方的Docker Hub
+
+https://quay.io/	＃docker镜像网址
+搜索：flannel
+点tags
+[root@room9pc01 ~]# docker pull quay.io/coreos/flannel:v0.10.0-amd64
+#下载flannel:v0.10.0-amd64镜像
+
+*镜像的生成途径
+—dockerfile
+—基于容器制作
+
+*基于容器制作镜像
+[root@room9pc01 ~]# docker run --name b1 -it busybox
+#运行b1容器
+/ # mkdir -p /data/html
+/ # vi /data/html/index.html
+<h1>wo shi busybox <h1>
+＃制作一个简单的网页
+[root@room9pc01 ~]# docker commit -p b1
+＃用ｂ１容器制作镜像
+-docker tag  4c79820747dd kunge1/httpd:v0.1
+-docker inspect kunge1/httpd:v0.1
+-docker run --name t1 -it kunge1/httpd:v0.1
+-/ # cat /data/html/index.html 
+<h1>wo shi server1<h1>
+-docker commit -h
+ -a, --author string    Author (e.g., "John Hannibal Smith
+                         <hannibal@a-team.com>")
+  -c, --change list      Apply Dockerfile instruction to the created image
+  -m, --message string   Commit message
+  -p, --pause            Pause container during commit (default true)
+
+- docker commit -a "<hannibal@a-team.com>" -c 'CMD ["/bin/httpd" , "-f" , "-h" , "/data/html"]' -p b1 kunge/httpd:0.2
+
+-docker run --name t2 kunge/httpd:0.2
+
+[root@room9pc01 ~]# docker image ls
+＃查看镜像
+REPOSITORY                    TAG                 IMAGE ID            CREATED             SIZE
+<none>                        <none>              92dca442b17f        59 seconds ago      1.2 MB
+[root@room9pc01 ~]# docker tag 92dca442b17f mageedu/httpd:v10
+#修改镜像标签（ｔａｇ）
+[root@room9pc01 ~]# docker image ls
+＃查看所有镜像
+[root@room9pc01 ~]# docker tag  mageedu/httpd:v10 httpd/h1:v1
+＃更改标签（ｔａｇ）
+[root@room9pc01 ~]# docker login -u 1245047618
+#登录docker帐号
+[root@room9pc01 ~]# docker push 1245047618/http:v0.2
+					　　镜像名必须是帐号名字/标签
+＃上传镜像到docker hub
+[root@room9pc01 ~]# docker save -o myimage.gz mageedu/http:v0.2 mageedu/httpd:v10
+#镜像导入，命名为myimage.gz
+[root@room9pc01 ~]# scp myimage.gz localhost
+[root@localhost ~]# docker load -i myimage.gz
+＃镜像导出
+[root@room9pc01 ~]# brctl show
+＃查看网桥
+[root@room9pc01 ~]# iptables -t nat -vnL
+#查看ip nat
+[root@room9pc01 ~]# docker start web1
+#开启web1容器
+docker exec -it web1 /bin/sh
+/ # ifconfig
+/ # wget -O -q http://172.17.0.2
+/ # netstat -ntulp
+＃查看nginx端口
+
+b1：
+/ # wget -O - -q http://172.17.0.4
+＃访问网页
+[root@localhost ~]# docker network inspect  bridge
+＃查看docker网桥的详细信息
+[root@room9pc01 ~]# docker container inspect web1
+＃查看web1容器的详细信息
+[root@node03 ~]# ip netns　＃网络虚拟化
+[root@node03 ~]# ip netns add r1	＃创建r1网络空间
+[root@node03 ~]# ip netns add r２	＃创建r2网络空间
+[root@node03 ~]# ip netns list		＃查看网络空间
+[root@node03 ~]# ip netns exec r1 ifconfig -a
+＃在网络空间执行命令
+[root@node03 ~]# ip link add name veth1.1 type veth peer name veth1.2
+＃添加两张虚拟网卡veth1.1和veth1.2
+[root@node03 ~]# ip link		＃查看连接网络
+[root@node03 ~]# ip link set dev veth1.2 netns r1		＃把veth1.2虚拟网卡移动到r1虚拟空间
+[root@node03 ~]# ip netns exec r1 ifconfig -a		＃查询r1网络空间网卡
+[root@node03 ~]# ip netns exec r1 ip link set dev veth1.2 name eth0
+＃veth1.2改名为eth0
+[root@node03 ~]# ip netns exec r1 ifconfig -a
+#查询
+[root@node03 ~]# ifconfig veth1.1 10.1.0.1/24 up
+＃给veth1.1配置ip地址并激活
+[root@node03 ~]# ip netns exec r1 ifconfig eth0 10.1.0.2/24 up
+＃给eth0配置ip地址
+[root@node03 ~]# ip netns exec r1 ifconfig
+＃查询
+[root@node03 ~]# ip link set dev veth1.1 netns r2
+＃把veth1.1添加到r2空间
+[root@node03 ~]# ip netns exec r2 ifconfig -a
+＃查询r2空间网卡ip地址
+[root@node03 ~]# ip netns exec r2 ifconfig veth1.1 10.1.0.3/24 up
+＃配置veth1.1ip地址并激活
+[root@node03 ~]# ip netns exec r2 ping 10.1.0.2
+＃ping r1空间的网卡
+[root@node02 ~]# docker run --name t1 -it --rm busybox:latest
+＃创建t1容器退出后自动删除
+[root@node02 ~]# docker run --name t1 -it --network bridge --rm busybox:latest
+＃创建一个连接网桥的容器
+/ # ifconfig	＃查看ip 地址
+[root@node02 ~]# docker run --name t1 -it --network none --rm busybox:latest
+＃创建一个没有网卡的容器
+/ # ifconfig
+[root@node02 ~]# docker run --name t1 -it --network bridge -h t1.busybox --rm　buybox:latest
+#创建容器时更改主机名
+/ # nslookup -type=A www.baidu.com　	＃域名解析
+[root@node02 ~]# docker run --name t1 -it --network bridge -h t1.linux --dns 114.114.114.114 --dns-search ilinux.io --rm busybox:latest
+＃基于域名解析的容器
+[root@node02 ~]#　docker run --name t1 -it --network bridge -h t1.linux --dns 114.114.114.114 --dns-search ilinux.io  --add-host www.magedu.com:1.1.1.1 --rm busybox:latest
+＃基于域名解析的容器
+/ # cat /etc/resolv.conf 
+search ilinux.io
+nameserver 114.114.114.114
+ ＃查看容器域名解析
+
+[root@docker0 ~]# docker run --name myweb --rm -p 80 1245047618/httpd:0.2   #开启页面服务
+
+[root@docker0 ~]# iptables -t nat -vnL	#查看策略端口
+Chain DOCKER (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 RETURN     all  --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+    0     0 DNAT       tcp  --  !docker0 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:32778 to:172.17.0.6:80
+
+浏览器访问:192.168.4.10:32778
+
+-用指定端口访问web
+[root@docker0 ~]# docker port myweb
+80/tcp -> 0.0.0.0:32779
+
+使用指定端口访问web页面
+02：
+-docker port myweb
+#查看映射端口
+-docker run --name myweb --rm -p 192.168.4.10:80 1245047618/httpd:v0.2	#映射192.168.4.10，80端口访问web页面
+-docker port myweb	#查看映射端口
+docker kill myweb		#停止web服务
+docker run --name myweb --rm -p 80:80 1245047618/httpd:v0.2	#指定映射80访问web页面
+docker run --name myweb --rm -p 192.168.4.10:8080:80 1245047618/httpd:v0.2	#指定用192.168.4.10：8080访问web页面
+
+#也可以用 -P暴露所有的端口，-p是只暴露指定的端口
+
+联盟式容器：共享同一个网络名称空间，但他们彼此之间是隔离的
+启动两个容器
+02：
+-docker run --name b1 -it --rm busybox	 #用busybox镜像启动名称为b1的容器
+-ifconfig
+
+-docker run --name b2 --network container:b1 -it -rm busybox 	##用busybox镜像启动名称为b2的容器,共享b1的网络空间
+-ifconfig
+#两台机之间彼此之间是隔离的，但网络是共享的
+b2：
+echo "hello world" > /tmp/index.html
+httpd -h /tmp/  #启动web服务
+netstat -ntulp
+
+b1:
+wget -O  - -q 127.0.0.1
+hello world
+
+-docker run --name b2 --network host -it --rm busybox	#使用本机的网络开启容器
+
+-ifconfig		#查询b1的ip地址
+
+-echo "hello container" > /tmp/index.html	#web页面
+-httpd -h /tmp/		#启动web服务
+-netstat -ntulp		#查询端口 
+
+浏览器访问：192.168.4.10：80
+
+02：
+bip，即bridge ip之意，用于指定docker0桥自身的ip地址，其他选项可通过此地址计算得出
+
+自定义docker网桥的网络属性信息：/etc/docker/daemon.json文件
+-systemctl stop docker
+#更改0桥的ip地址
+-vim /etc/docker/daemon.json
+{
+"bip": "10.0.0.1/16"
+}
+-systemctl restart docker
+-ifconfig
+
+-systenctl stop docker
+docker守护进程的C/S，其默认仅监听Unix S0cket 格式的地址：/var/run/docker.sock;如果使用TCP套接字，也可向dockerd直接传递“-H | --host”选项
+-vim /etc/docker/daemon.json:
+"hosts":["tcp://0.0.0.0:2375","unix:///var/run/docker.sock"]	#监听本机所有ip地址的2375
+
+-systemctl restart docker
+-ls /var/run
+-ss -ntulp		#查看端口
+
+-docker  ps  	#查看本机开启的容器
+-docker  -H 192.168.4.10：2375 ps	#查看192.168.4.10：2375所有容器
+-docker  -H 192.168.4.10:2375  image ls  	#查看192.168.4.10：2375所有镜像
+
+#创建网络桥:172.26.0.1
+-docker network create -d bridge --subnet "172.26.0.0/16" --gateway "172.26.0.1" mybr0
+
+-docker network ls 	   #查看docker容器的全部网络
+
+-ifconfig 
+
+-docker  run --name t1 -it --net mybr0 busybox:latest	#创建t1容器，基于mybr0网络创建
+-ifconfig
+
+-docker run --name t2 -it --net bridge busybox:latest	#创建t2容器，基于docker0网桥创建
+-ifconfig
+
+-cat /proc/sys/net/ipv4/ip_forward	#查看路由转发是否开启，1为开启，0为关闭
+
+-iptables  -vnL			#查看防火墙规则
+
+
+#volumes
+*Volume 于容器初始化之时即会创建，由base image提供的卷中的数据会于此期间完成复制
+*Volume的初衷是独立容器的生命周期实现数据持久化，因此删除容器之时不会删除卷，也不会对哪怕未被引用的卷做垃圾回收操作；
+
+#volumes types（类型）
+*绑定挂载卷
+-宿主机的目录和容器的目录都要指定
+*docker管理卷
+-只需要指定容器的目录，宿主机目录无需指定自动创建
+
+01：
+*docker管理卷
+-docker run --name b2 -it -v /data busybox	#创建一个b2容器，容器目录在/data
+-cat /data/test.html
+
+-docker inspect b2
+Source： 		#卷存放的位置
+
+cd  "卷存放的位置"
+-echo "hello world" >> test.html
+-cat test.html
+
+-docker rm b2
+ 
+-docker run --name b2 -it --rm -v /data/volumes/b2:/data busybox	#创建b2容器，宿主机路径在/data/volumes/b2
+
+-cd /data/volumes/b2
+-echo <h1>busybox server web<h1>
+
+/# cat /data/index.html
+/# exit
+
+-docker pa -a 
+-docker run --name b2 -it --rm -v /data/volumesb2:/data/web/html busybox
+/ # cat /data/web/html/index.html   #数据依然还在
+/# exit
+
+-docker run --name b2 -it --rm -v /data/volumes/b2:/data/web/html  busybox
+/ # cat /data/web/html/index.html
+/ # exit
+
+-docker inspect b2
+
+*用关键词过滤内容
+-docker inspect -f {{.Munts}} b2
+
+*两个容器共享数据存储
+-docker run --name b3 -it --rm -v /data/volumes/b2:/data/web/html  busybox
+/ # echo  <h2>b3 container<h2> >> /data/web/html/index.html
+
+-docker run --name b2 -it --rm -v /data/volumes/b2:/data/web/html  busybox
+/ #  cat /data/web/html/index.html
+/ # exit
+
+*多个容器的卷使用一个主机目录
+docker run --name infracon -it -v /data/infracon/volume/:/data/web/html busybox
+ docker run --name infracon2 -it -v /data/infracon/volume/:/data/web/html busybox
+
+*--volumes-from选项，复制使用其他容器的卷，--volumes-from选项
+docker run --name nginx --network container:infracon --volumes-from infracon -it busybox
+/ #ifconfig
+
+docker inspect infracon	#查询infracon容器的详细信息
+docker inspect nginx	#查询infracon容器的详细信息
+
+#dockerfile
+Docker Format
+*FROM
+--FROM指令是最重的一个且必须为Dkcerfile文件开篇的第一个非注释行，用于为映像文件构建
+过程指定基准镜像，后续的指令运行于此基准镜像所提供的运行环境
+
+*Dockerfile Instustions
+*MAINTANIER（depreacted）
+--用于让Dockerfile制作者提供本人的详细信息
+*用法：MAINTANIER <authtor's detail>
+<authtor's detail>可以是文本信息，但authtor's detail要使用作者名称即邮件地址
+
+如：MAINTAINER "magedu<mage@#magedu.com>"
+
+*COPY
+--用于从Docker主机复制文件至创建的新映像文件
+用法：
+COPY <src>...<dest> 或
+COPY ["<src>"....."<dest>"]
+--<src>:要复制的源文件或目录，支持使用通配符
+--<dest>：目标路径，即正在创建的image的文件系统路径；建议为<dest>使用绝对路径，否则
+COPY指定则以WORKDIR为其起始路径：
+注意：在路径中空白字符时，通常使用第二种格式
+
+
+*vim index.html
+<h1>busybox web</h1>
+
+*vim dockerfile
+#test image
+FROM busybox:latest
+COPY index.html /data/web/html/
+COPY yum.repos.d /etc/yum.repos.d/   #复制yum.repos.d目录下的文件，到容器中
+ADD http://nginx.org/download/nginx-1.15.2.tar.gz  /usr/local/src   #把网络包下载到容器目录中
+ADD nginx-1.15.2.tar.gz  /usr/local/src		#把tar包解压，放到容器目录中
+
+*用dockerfile文件生成镜像
+docker build -t tinyhttpd:v0.1-1 ./
+
+*运行容器
+docker run --name tinyweb1 --rm tinyhttpd:v0.1-1 cat /data/web/html/index.html
+docker run --name tinyweb1 --rm tinyhttpd:v0.1-1 ls /etc/yum.repos.d/
+docker run --name tinyweb1 --rm tinyhttpd:v0.1-2 ls /usr/local/src
+docker run --name tinyweb1 --rm tinyhttpd:v0.1-3 ls /usr/local/src/nginx-1.15.2/
+
+
+*vim dockerfile
+#test image
+FROM busybox:latest
+COPY index.html /data/web/html/
+COPY yum.repos.d /etc/yum.repos.d/   #复制yum.repos.d目录下的文件，到容器中
+#ADD http://nginx.org/download/nginx-1.15.2.tar.gz  /usr/local/src   #把网络包下载到容器目录中
+#ADD nginx-1.15.2.tar.gz  /usr/local/src		#把tar包解压，放到容器目录中
+WORKDIR /usr/local
+ADD nginx-1.15.2.tar.gz ./src/
+VOLUME  /data/mysql			#用于在容器镜像中创建一个挂载点目录，以挂在docker host上的卷或其他容器上的卷
+
+*WORKDIR 用于为dockerfile中所有RUN、CMD、ENTRYPOINT、COPY和ADD指定设定工作目录
+*VOLUME  用于在image中创建一个挂在点目录，以挂在docker host上的卷或其他容器上的卷
+
+docker build -t tinyhttpd:v0.1-5 ./
+docker run  --name tinyweb1 --rm tinyhttpd:0.1-5 mount  
+*查看新建容器中是否有/data/mysql挂载点
+docker run  --name tinyweb1 --rm tinyhttpd:0.1-5 mount  sleep 60
+
+docker inspect tinyweb1
+*查看tinyweb1容器是否有/data/mysql挂载点
+
+*EXPOSE 用于容器打开指定要监听的端口以实现于外部通信
+*vim dockerfile
+#test image
+FROM busybox:latest
+COPY index.html /data/web/html/
+COPY yum.repos.d /etc/yum.repos.d/   #复制yum.repos.d目录下的文件，到容器中
+#ADD http://nginx.org/download/nginx-1.15.2.tar.gz  /usr/local/src   #把网络包下载到容器目录中
+#ADD nginx-1.15.2.tar.gz  /usr/local/src		#把tar包解压，放到容器目录中
+WORKDIR /usr/local
+ADD nginx-1.15.2.tar.gz ./src/
+VOLUME  /data/mysql			#用于在容器镜像中创建一个挂载点目录，以挂在docker host上的卷或其他容器上的卷
+EXPOSE  80/tcp				#打开容器的80端口
+
+docker build -t tinyhttpd:v0.1-6 ./	*创建镜像
+docker run --name tinyweb1 --rm tinyhttpd:0.1-6 /bin/httpd -f -h /data/web/html
+*新建tinyweb1容器，并开启httpd服务，指定httpd的网页文件目录
+
+docker inspect tinyweb1 *查看容器的网桥地址
+curl   tinyweb1网桥地址   *查看网页
+docker  port  tinyweb1   *查看暴露的端口，没有暴露端口
+
+docker run --name tinyweb1 --rm -P tinyhttpd:0.1-6 /bin/httpd -f -h /data/web/html
+*加上-P暴露端口
+docker  port  tinyweb1   *查看暴露的端口，有暴露端口
+
+*ENV 用于镜像定义环境变量，并可以被dockerfile文件中其他指定所调用
+格式：$variable_name 或 ${variable_name}
+
+*vim dockerfile
+#test image
+FROM busybox:latest
+ENV  DOC_ROOT  /data/web/html/  \	*定义DOC_ROOT的值为/data/web/html
+         WEB_SERVER_PACKAGE="nginx-1.15.2"
+
+COPY index.html /data/web/html/  或 $DOC_ROOT  或 ${DOC_ROOT:-/data/web/html/}	
+COPY yum.repos.d /etc/yum.repos.d/   #复制yum.repos.d目录下的文件，到容器中
+#ADD http://nginx.org/download/nginx-1.15.2.tar.gz  /usr/local/src   #把网络包下载到容器目录中
+#ADD nginx-1.15.2.tar.gz  /usr/local/src		#把tar包解压，放到容器目录中
+WORKDIR /usr/local
+ADD ${WEB_SERVER_PACKAGE}.tar.gz  ./src/
+VOLUME  /data/mysql			#用于在容器镜像中创建一个挂载点目录，以挂在docker host上的卷或其他容器上的卷
+EXPOSE  80/tcp				#打开容器的80端口
+
+docker build -t tinyhttpd:v0.1-7 ./	*创建镜像
+docker run --name tinyweb1 --rm -P tinyhttpd:v0.1-7 ls /usr/local/src/nginx-1.15.2
+*创建容器，并查看目录
+docker run --name tinyweb1 --rm -P tinyhttpd:v0.1-7 printenv
+*查看容器的环境变量
+docker run --name tinyweb1 -P -e WEB_SERVER_PACKAGE="nginx-1.15.1" --rm  tinyhttpd:v0.1-7 printenv
+*创建容器是直接定义变量
+
+*RUN  新建镜像时执行命令
+*vim dockerfile
+#test image
+FROM busybox:latest
+ENV  DOC_ROOT  /data/web/html/  \	*定义DOC_ROOT的值为/data/web/html
+         WEB_SERVER_PACKAGE="nginx-1.15.2"
+
+COPY index.html /data/web/html/  或 $DOC_ROOT  或 ${DOC_ROOT:-/data/web/html/}	
+COPY yum.repos.d /etc/yum.repos.d/   #复制yum.repos.d目录下的文件，到容器中
+#ADD http://nginx.org/download/nginx-1.15.2.tar.gz  /usr/local/src   #把网络包下载到容器目录中
+#ADD nginx-1.15.2.tar.gz  /usr/local/src		#把tar包解压，放到容器目录中
+WORKDIR /usr/local			#定义镜像初始目录
+ADD ${WEB_SERVER_PACKAGE}.tar.gz  ./src/
+VOLUME  /data/mysql			#用于在容器镜像中创建一个挂载点目录，以挂在docker host上的卷或其他容器上的卷
+EXPOSE  80/tcp				#打开容器的80端口
+
+RUN cd /usr/local/src && \
+         tar xf ${ WEB_SERVER_PACKAGE}  
+
+docker build -t tinyhttpd:v0.1-8 ./	*创建镜像
+docker run --name tinyweb1 --rm -P -e WEB_SERVER_PACKAGE="nginx-1.15.1"  -it tinyhttpd:v0.1-8  ls /usr/local/src
+#创建容器并查看目录
+
+*CMD 镜像运行容器时，要启动的命令，在dockerfile中只有一个，定义多个时也没用，只有最后一个生效
+用法：CMD <命令>
+
+*创建镜像时运行shell的子进程
+vim dockerfile
+FROM  busybox
+LABEL  maintainer="<mail>"  app="httpd"
+
+ENV WEB_DOC_ROOT="/dev/web/html"
+
+RUN   mkdir -p $ENV WEB_DOC_ROOT && \
+          echo '<h1>wo shi busybox</h1>'   > ${ENV WEB_DOC_ROOT}/index.html
+
+CMD /bin/httpd -f -h ${ENV WEB_DOC_ROOT}
+
+docker build -t tinyhttpd:v0.2-1 ./	*创建镜像
+docker run --name tinyweb2 -it --rm -P tinyhttpd:v0.2-1	*创建容器
+docker exec -it tinyweb2 /bin/sh	*用exec命令运行容器
+
+*创建镜像时不运行shell的子进程
+vim dockerfile
+FROM  busybox
+LABEL  maintainer="<mail>"  app="httpd"
+
+ENV WEB_DOC_ROOT="/dev/web/html"
+
+RUN   mkdir -p $ENV WEB_DOC_ROOT && \
+          echo '<h1>wo shi busybox</h1>'   > ${ENV WEB_DOC_ROOT}/index.html
+
+#CMD /bin/httpd -f -h ${ENV WEB_DOC_ROOT}
+CMD ["/bin/sh", "-c", "/bin/httpd", "-f", "-h" ${WEB_DOC_ROOT}]
+
+docker build -t tinyhttpd:0.2-2 ./	*创建镜像
+docker run --name tinyweb2 -it --rm -P tinyhttpd:v0.2-2	*创建完容器后自动退出
+docker run --name tinyweb2 -it --rm -P tinyhttpd:v0.2-2 /bin/httpd -f -h /data/web/html
+*可以直接这样创建容器，启动web服务，docker run加运行命令可以直接覆盖CMD指定的命令
+
+*ENTRYPOINT  跟CMD类似，镜像运行容器时，要启动的命令，在dockerfile中只有一个，
+不同的是ENTRYPOINT 不会被docker run中的命令覆盖
+
+vim dockerfile
+FROM  busybox
+LABEL  maintainer="<mail>"  app="httpd"
+
+ENV WEB_DOC_ROOT="/dev/web/html"
+
+RUN   mkdir -p $ENV WEB_DOC_ROOT && \
+          echo '<h1>wo shi busybox</h1>'   > ${ENV WEB_DOC_ROOT}/index.html
+
+#CMD /bin/httpd -f -h ${WEB_DOC_ROOT}
+#CMD ["/bin/sh", "-c", "/bin/httpd", "-f", "-h" ${WEB_DOC_ROOT}]
+ENTRYPOINT /bin/httpd -f -h ${WEB_DOC_ROOT}
+
+docker build -t tinyhttpd:0.2-5 ./	*创建镜像
+docker run --name tinyweb2 -it --rm -P tinyhttpd:v0.2-5
+docker run --name tinyweb2 -it --rm tinyhttpd:v0.2-5 ls /data/web/html
+*命令不能将ENTRYPOINT的命令覆盖掉
+
+*CMD与ENTRYPOINT连用时，CMD里面的指令会当成参数，传递给ENTRYPOINT
+vim dockerfile
+FROM  busybox
+LABEL  maintainer="<mail>"  app="httpd"
+
+ENV WEB_DOC_ROOT="/dev/web/html"
+
+RUN   mkdir -p $ENV WEB_DOC_ROOT && \
+          echo '<h1>wo shi busybox</h1>'   > ${WEB_DOC_ROOT}/index.html
+
+#CMD /bin/httpd -f -h ${WEB_DOC_ROOT}
+CMD ["/bin/httpd",  "-f", "-h" ${WEB_DOC_ROOT}]
+#ENTRYPOINT /bin/sh -c    *这样定义是会变成用/bin/sh -c 运行/bin/sh -c,是错误的
+ENTRYPOINT ["/bin/sh", "-c"]
+
+docker build -t tinyhttpd:v0.2-6 ./	*创建镜像
+docker run --name tinyweb2 -it  -P tinyhttpd:v0.2-6 ls /data
+
+vim dockerfile
+FROM  nginx:1.14-alpine
+LABEL   maintainer="MageEdu <mail>
+
+ENV NGX_DOC_ROOT="/data/web/html/"
+ADD  entrypoint.sh /bin
+CMD ["/usr/sbin/nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/bin/entrypoint.sh"]
+
+vim entrypoint.sh
+#!/bin/sh
+cat > /etc/nginx/conf.d/www.conf  << EOF
+{
+	server_name ${HOSTNAME};
+	listen ${IP:-0.0.0.0}:${PORT:-80};
+	root ${NGX_DOC_ROOT:-/usr/share/nginx/html};
+}
+EOF
+exec "$@"
+
+chmod +x  entrypoint.sh
+
+docker build -t myweb:v0.3-1 ./
+docker run --name myweb1 --rm -P myweb:v0.3-1  /bin/sh
+
+vim dockerfile
+FROM  nginx:1.14-alpine
+LABEL   maintainer="MageEdu <mail>
+
+ENV NGX_DOC_ROOT="/data/web/html/"
+ADD  index.html ${NGX_DOC_ROOT}
+ADD  entrypoint.sh /bin
+CMD ["/usr/sbin/nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/bin/entrypoint.sh"]
+
+vim index.html
+<h1>wo shi nginx ner mkdir</h1>
+
+docker build -t myweb:v0.3-6 ./
+docker run --name myweb1 --rm -P myweb:v0.3-6
+docker exec -it myweb1 /bin/sh
+/# ls /etc/nginx/conf.d/www.conf
+/# cat /etc/nginx/conf.d/www.conf
+/# netstat -tnl
+/# wget -O  - -q lcoalhost
+
+docker run --name myweb1 --rm -P -e "PORT=8080" myweb:v0.3-6
+docker exec -it myweb1 /bin/sh
+/ # netstat -ntl
+
+
+*HEALTHCHECK 健康检查
+
+vim dockerfile
+FROM  nginx:1.14-alpine
+LABEL   maintainer="MageEdu <mail>
+
+ENV NGX_DOC_ROOT="/data/web/html/"
+ADD  index.html ${NGX_DOC_ROOT}
+ADD  entrypoint.sh /bin
+EXPOSE  80/tcp
+HEALTHCHECK --start-period=3s  CMD wget -O - -q http://${IP:-0.0.0.0}:${PORT	:-80}/
+*每3秒检查wget命令是否运行成功
+CMD ["/usr/sbin/nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/bin/entrypoint.sh"]
+
+docker build -t myweb:v0.3-7 ./
+docker run --name myweb1 --rm -P -e "PORT=8080" myweb:v0.3-7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

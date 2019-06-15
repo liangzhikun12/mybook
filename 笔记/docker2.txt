@@ -1,0 +1,903 @@
+基础:
+*使用search命令搜索镜像
+docker search ＋搜索的镜像
+命令在docker hub中搜索镜像
+
+*使用pull命令下载镜像
+从docker hub下载Ubuntu镜像
+docker pull ubuntu:latest
+命令格式:docker pull <镜像名称><标签>
+
+*使用images命令列出镜像目录
+列出本地主机已经下载的镜像
+docker images
+
+*使用run命令创建容器
+使用镜像创建容器后运行bash shell
+docker run -i -t --name hello ubuntu /bin/bash
+命令格式:docker run <选项><镜像名称><要运行的文件>
+-使用-i -t选项可以在运行bash shell中进行输入与输出
+-使用--name选项可以制定容器名称.若不指定名称,docker会自动生成名称病进行指定
+
+*使用ps命令查看容器列表(包括已停止的容器)
+docker ps -a
+
+*使用start命令启动容器
+docker start hello
+命令格式:docker start <容器名称>也可以使用容器id代替容器名称
+
+*使用restart命令重启容器
+docker restart hello
+命令格式:docker restart <容器名称>也可以使用容器id代替容器名称
+
+*使用attach命令连接容器
+docker attach hello
+命令格式:docker attach <容器名称>也可以使用容器id代替容器名称
+-运行/bin/bash也能输入命令,但是如果运行DB或服务器应用程序讲无法进行输入,只能看到输出
+-在bash shell输入exit终止容器,若依次输入ctrl+P.ctrl+Q,则不会终止容器只退出
+
+*使用exec命令从外部运行容器内的命令
+-当容器处于运行状态时,也可以不通过/bin/bash从外部运行容器内的命令
+
+*使用stop命令终止容器
+docker stop hello
+-命令格式:docker stop <容器名称>
+
+*使用rm命令删除容器
+docker rm hello
+-命令格式docker rm <容器名称>
+
+*使用rmi命令删除镜像
+docker rmi ubuntu:latest
+命令格式:docker rmi <镜像名称>:<标签>
+
+*编写dockerfile
+dockerfile是镜像设置文件.docker中设置的内容用于创建镜像
+#创建目录保存dockerfile文件
+-mkdir example
+-cd example
+vim dockerfile
+FROM ubuntu:14.04
+MAINTINER Foo Bar <foo@bar.com>
+
+RUN agt-get update
+RUN apt-get install -y nginx
+RUN echo "\ndaemon off;" >> /etc/nginx/nginx.conf
+RUN chown -R www-data:www-data /var/lib/nginx
+
+VOLUME ["/data", "/etc/nginx/site-enabled", "/var/1og/nginx"]
+WORKDIR /etc/nginx
+
+CMD ["nginx"]
+
+EXPOSE 80
+EXPOSE 443
+-from:指定基于的基础镜像,dockerfile是基于已创建的镜像来创建镜像,指令格式:<镜像名称>:<标签>
+-MAINTINER:维护者信息
+-RUN:运行shell脚本或者命令
+-VOLUME:要与主机共享的目录,也可以在docker run命令中使用-v选项进行设置.
+例如:-v /root/data:/data 将主机的/root/data目录链接到docker容器的/data目录
+CMD:指定容器启动时执行的文件或脚本
+
+*使用build命令创建镜像
+在example目录中执行:
+docker build --tag hello:0.1
+命令格式:docker build <选项><docker 路径>,--tag选项可以设置镜像名称与标签
+
+*查看所有镜像,hello:0.1镜像已经创建完成
+docker images
+
+*运行创建好的hello:0.1镜像
+docker run --name hello-nginx -d -p 80:80 -v /root/data:/data hello:0.1
+#-d选项在后台运行容器
+#-p 80:80选项将主机的80端口与容器的80端口连接起来,并暴露到外部.这样设置后,连接http://<主机 IP>:80
+就会连接到容器的80号端口
+#-v /root/data:/data 选项将主机的/root/data 目录连接到容器的/data目录,
+若将文件放入/root/data 目录,则能从容器读取相应文件
+
+*浏览器访问:http:<主机ip>:80,出现welcome to nginx!页面
+
+*使用history命令查看镜像历史
+docker history hello:0.1
+命令格式:docker history <镜像名称>:<标签>
+#查看hello:0.1镜像的历史命令
+
+*使用cp命令复制文件
+docker cp hello-nginx:/etc/nginx/nginx.conf ./
+命令格式:docker cp <容器名称>:<路径><主机路径>
+
+*使用commit命令从容器的修改中创建容器
+docker commit -a "Foo Bar <foo@bar.com>" -m "add hello.txt" hello-nginx hello:0.2
+命令格式:docker commit <选项><容器名称><镜像名称>:<标签>
+-a "Foo Bar <foo@bar.com>" 与 -m "add hello.txt"选项用于设置提交的用户与注册信息.
+将hello-nginx容器创建为hello:0.2镜像
+*显示镜像列表
+docker images
+-成功创建hello:0.2镜像
+
+*使用diff命令检查容器文件的修改
+docker diff hello-nginx
+命令格式:docker diff <容器名称>, A为添加的文件,c为修改的文件, D为删除的文件
+
+*使用imspect命令查看详细信息
+-docker inspect <镜像名称>命令显示镜像与容器的详细信息
+docker inspect hello-nginx
+
+*搭建docker私有仓库
+-docker命令默认使用docker Hub
+-docker push命令可以将镜像上传到注册的服务器,使用docker pull命令可以下载镜像
+
+*存储镜像数据到本地
+先下载docker注册镜像
+docker pull registry:latest
+
+*以容器运行registry:latest镜像
+docker run -d -p 5000:5000 --name hello-registry -v /tmp/registry:/tmp/registry registry:latest
+-运行后,镜像文件存储到主机的/tmp/registry目录
+
+*使用push命令上传镜像
+将hello:0.1镜像上传到私有仓库
+docker tag hello:0.1 localhost:5000/hello:0.1
+命令格式:docker tag<镜像名称>:<标签> <dockerhub>/<镜像名称>:<标签>
+
+*上传hello:0.1镜像
+docker push localhost:5000/hello:0.1
+
+*下载镜像
+docker pull <dockerhub>/hello:0.1
+
+*存储镜像数据到Amazon S3
+*先下载镜像
+docker　pull registry:latest
+
+*以容器运行registry:latest镜像
+docker run -d -p 5000:5000 --name 时-registry \
+-e SETTINGS_FLAVOR=s3 \
+-e AWS_BUCKET=examplebucket10 \
+-e STORAGE_PATH=/registry  \
+-e AWS_KEY=aws访问秘钥  \
+-e AWS_SECRET=设置AWS秘密秘钥  \
+registry
+-SETTINGS_FLAVOR:镜像存储方法设置为s3
+-AWS_BUCKET:定义存储镜像数据的S3 bucket名称
+-STORAGE_PATH:镜像数据存储路径,设置为/registry
+-AWS_KEY=aws访问秘钥  
+-AWS_SECRET=设置AWS秘密秘钥  
+
+*连接docker的容器
+-使用docker创建镜像时,虽然web服务器.DB等所需程序都可以安装其中,但通过要将这些程序分别生成镜像.像这样分别生成镜像,创建容器是,经常要连接相邻的容器.比如web服务器vixu连接DB进行数据交换
+-连接这些Docker容器时,要在docker run命令中使用--link选项.首先以容器运行DB镜像,此处要使用MongoDB
+*先使用docker run命令创建mongodb容器
+docker run --name db -d mongo
+-将容器名称设置为db
+docker run --name web -d -p 80:80 --link "db:db nginx
+命令格式:docker run命令中,连接选项的格式为--link<容器名称>:<别名>,
+
+*输出容器列表
+docker ps
+
+]# cat `docker inspect -f "{{.HostsPath}}" web`	#查看db容器的IP地址
+
+*浏览器访问:db容器的IP地址:27217/exampledb容器的ip地址
+
+*连接到其他服务器的Docker容器
+
+*创建dockerfile文件
+CMD env | grep _Tcp= | \
+sed 's /.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat \
+TCP-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/' \
+ | sh && top
+*这段shell脚本运行docker run命令是利用传递的环境变量执行socat
+
+EXAMPLE_PORT=tcp://192.168.0.10:1234
+EXAMPLE_PORT_1234_TCP_ADDR=192.168.0.10
+EXAMPLE_NAME=/example_ambassador/example
+HOSTNAME=0vf479687cb0
+EXAMPLE_PORT_1234_TCP_PORT=1234
+HOME=/
+EXAMPLE_PORT_1234_TCP_PROTO=tcp
+EXAMPLE_PORT_1234_TCP=tcp://192.168.0.10:1234
+TERM=xterm
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PWD=/
+*使用socat命令将本地TCP协议1234端口的数据传递到192.168.0.10的1234端口,称为Amdassador Pattern
+
+*创建Redis容器,服务器IP地址为192.168.0.10
+docker pull redis:latest
+docker run -d --name redis redis:latest
+*使用--name redis选项,将容器名称设置为redis
+
+*为redis容器创建Ambassador容器,svendowideit是Ambassador Pattern创建这的名字
+docker run -d --link redis:redis --name redis_ambassador \
+-p 6379:6379 svendowideit/ambassador
+--使用-d选项在后台运行容器
+--使用--link redis:redis选项,用redis别名连接redis容器
+--使用--name redis_ambassador 选项设置容器名称为redis_ambassador
+--使用-p 6379:6379选项连接容器的6379端口与主机的6379端口,并将暴露在外部
+--从docker hub下载svendowideit/ambassador镜像,然后创建为容器
+
+*用redis客户端的电脑中创建ambassador容器,redis服务器的IP地址为192.168.0.10
+docker run -d --name redis_ambassador --expose 6379 \
+-e REDIS_POST_6379_TCP=tcp://192.168.0.10:6379 svendowideit/ambassador
+--使用-d选项在后台运行容器
+--使用--name redis_ambassador,设置容器名称为redis_ambassador
+--使用--expose 6379选项,可以从其他容器连接到6379端口;redis客户端连接到该redis_ambassador容器的6379端口;--expose不会将主机端口暴露在外面
+--使用-e REDIS_POST_6379_TCP=tcp://192.168.0.10:6379选项设置ip地址与端口,连接到位于其他服务器的
+redis_ambassador容器
+
+*使用docker hub的redis容器,使用该容器连接到redis_ambassador容器
+docker run -it --rm --link redis_ambassador:redis relateiq/redis-cli
+--使用-it选项,使得可以在控制台中进行输入输出
+--使用--rm 选项只运行容器,删除容器本身,与redis客户端一样,一次性使用时会比较方便
+--使用--link redis_ambassador:redis选项,通过redis别名连接redis_ambassador容器
+
+*使用ping命令,查看是否连接上服务器redis容器,结果PONG为正常
+ping
+
+*使用docker数据卷
+
+--将容器内的/data目录设置为数据卷,运行容器的Bash shell
+docker run -it --name hello-volume -v /data ubuntu /bin/bash
+*数据卷选项格式为-v <容器目录>
+
+*使用docker inspect,查看hello-volume容器路径
+docker inspect -f "{{.Volumes }}" hello-volume
+
+*使用ls命令输出上面所查的目录
+
+*使用数据卷在各个容器见共享数据
+docker run -it --name hello-volumes1 -v /root/data:/data ubuntu /bin/bash
+/# cd /data
+/#  touch world
+*数据卷选项格式为-v <主机目录>:<容器目录>,此处将主机/root/data目录连接到docker容器的/data目录
+
+*运行容器的Bash shell,输出/data目录的文件列表
+docker run -it --name hello-volume2 -v /root/data:/data ubunte /bin/bash
+/# ls /data
+*两个容器共享了一个文件,这样设置可以实现多台容器共享数据
+
+*将主机的一个文件连接到容器
+docker run -it --name hello-volume -v /root/hello.txt:/root/hello.txt ubuntu /bin/bash
+
+*使用docker数据卷容器
+--创建数据卷容器,运行容器的bash shell转到/data目录
+docker run -it --name hello-volume -v /root/data:/data ubuntu /bin/bash
+/#cd /data
+/#touch hello2
+
+#创建容器连接刚刚创建的hello-volume容器
+docker  run -it --volumes-from hello-volume --name hello ubuntu /bin/bash
+/# ls /data
+*连接数据卷容器选项为--volumes-from<数据卷容器>
+
+*不将/data目录连接到主机的指定目录也可以做数据卷容器
+docker run -it --name hello-volume -v /data ubuntu /bin/bash
+
+*创建docker基础镜像
+
+*ubunte创建基础镜像
+--安装bootstrap工具debootstrap
+apt-get install debootstrap
+
+*使用debootstrap 下载ubuntutrusty(14.04)二进制文件,trusty竖Ubuntu Linux的代号
+debootstrap trusty trusty
+--命令格式:debootstrap<代号><目录>
+
+--tar -C trusty -c . | docker import - trusty
+--docker import http://exmaple.com/trusty.tgz trusty
+*命令格式:docker import <URL 或 - ><镜像名称>:<标签>,若通过 | 接收数据,则指定为-
+
+*输出镜像目录
+docker images
+
+*使用trusty创建容器
+docker run -i -t --name hello trusty /bin/bash
+/#cat /etc/lsb-release
+#查看版本
+
+*创建Centos基础镜像
+安装Bootstrap工具febootstrap
+yum -y install febootstrap
+
+*使用debootstrap 工具下载centos 6.5二进制文件
+febootstrap -u http://mirror.nsc.liu.se/centos-store/7.3.1611/os/x86_64/ centos65 centos65 http://mirror.nsc.liu.se/centos-store/7.3.1611/os/x86_64/
+命令格式:debootstrap<选项><仓库><目录><镜像 URL>
+
+*下载全部二进制文件后,使用docker import 命令创建基础镜像
+tar -C centos65 -c. | docker import - centos65
+*命令格式:docker import <URL 或 - ><镜像名称>:<标签>,若通过 | 接收数据,则指定为-,也可以使用网络文件
+
+--使用网络文件创建镜像
+docker import http://example.com/centos65.tgz centos65
+
+--输出镜像目录
+docker images
+
+*使用centos65镜像创建容器
+docker run -i -t --name hello centos65 /bin/bash
+/# cat /etc/centos-release
+*查看版本
+
+#创建空基础镜像
+*使用/dev/null设备创建空tar文件,并传递给docker import命令
+tar cv --files-from /dev/null | docker import - scratch
+
+*使用简单的C语言程序放入scratch镜像中,创建hello目录并转到此处
+mkdir hello
+cd hello
+vim hello.c
+#include <stdio.h>
+
+int main ()
+{
+printf("Hello Docker\n");
+return 0;
+}
+
+*安装编译器
+--Ubuntu
+apt-get install gcc
+
+--centos
+yum -y install gcc glibc-static
+
+*镜像不含任何库文件,必须编译为静态的二进制文件
+gcc hello.c -static -o hello
+
+--vim dockerfile
+FROM scratch
+ADD ./hello /hello
+CMD ["/hello"]
+*FROM:指定以那个镜像为基础,docker镜像给予已经创建的镜像,格式为<镜像名称>:<标签>,设置已经创建好的镜像
+*ADD:设置镜像中要包含的文件,格式为<本地路径><镜像路径>,此处设置为前面编译hello.c文件生成的hello文件
+*CMD:容器启动时要运行的可执行文件或脚本
+
+*使用docker build命令创建镜像
+docker build --tag hello:0.1 .
+
+*以容器创建scratch镜像创建的hello:0.1镜像
+docker run --rm hello:0.1
+
+*使用git下载dockerfile与bash脚本
+git clone https://github.com/pyrasis/dind.git
+
+*转到dind目录后,使用do9cker build命令创建镜像
+cd dind
+docker build --tag dind .
+
+*使用dind镜像创建容器
+docker run -i-t --privileged dind
+*--privileged可以让容器内部可以使用主机的所有linux内核功能
+
+*docker in docker 是实验性质的功能,所以要设置日志输出,若不想输出日志,只需使用-e LOG=file选项
+docker run -it --privileged -e LOG=file dind
+ 
+*在docker容器内运行docker
+docker run -it busybix:latest /bin/sh
+
+*了解dockerfile
+--vim dockerfile
+FROM scratch
+*格式:FROM<镜像>或FROM<镜像>:<标签>
+
+docker build -tag example .
+docker build -t pyrasis/example .
+*--tag或者-t选项用于设置镜像名称
+
+*MAINTAINER 用于设置镜像创建者的信息,格式自由
+MAINTAINER  HONG,<ll@tedu.com>
+
+*RUN 用于在FROM中设置的镜像上运行脚本或命令
+--使用shell(/bin/sh)运行命令
+vim dockerfile
+RUN  yum -y install nginx
+RUN  echo "hello docker" > /tmp/hello
+RUN  curl -sSL https://gilang.org/d1/go1.3.1.src.tar.gz | tar -v -C /usr/local -xz
+RUN  git clone https://girhub.com/docker/docker.git
+*RUN可以运行FROM镜像内的/bin/sh执行文件,如果执行文件不存在则无法使用
+
+--无shell直接运行
+vim dockerfile
+RUN  ["yum", "install", "-y", "nginx"]
+RUN  ["/usr/lcoal/bin/hello", "--help"]
+*使用格式RUN["<可执行文件>", "<形式参数1>", "<形式参数2>"]
+--这种方法不适用所设镜像的/bin/sh文件
+
+*CMD 用于设置容器启动是运行的脚本或命令,在Dockerfile文件中,CMD只能使用一次
+--用(/bin/sh)运行命令
+vim dockerfile
+CMD  touch /home/hello/hello.txt
+
+--无shell直接运行时设置形式参数
+vim dockerfile
+CMD ["mysqld", "--datadir=/var/lib/mysql", "--user=mysql"]
+
+*ENTRYPOINT 用于设置容器启动时运行的脚本或命令,在Dockerfile文件中,只能使用一次
+vim dockerfile
+ENTRYPOINT touch /home/hello/hello.txt
+*使用格式:ENTRYPOINT <命令>,可运行FROM镜像内sh可执行文件
+
+--无shell直接运行
+vim dockerfile
+ENTRYPOINT ["/home/hello/hello.sh"]
+
+vim dockerfile
+ENTRYPOINT ["/home/hello/hello.sh", "--hello=1", "--world=2"]
+
+*EXPOSE 用于设置与主机相连的端口号,与docker run 命令中的--expose选项功能一致
+格式:EXPOSE <端口号>
+vim dockerfile
+EXPOSE 80
+EXPOSE 443
+或
+EXPOSE 80 443
+
+*ENV 用于设置环境变量
+ENV <环境变量><值>
+vim dockerfile
+ENV HELLO 1234
+CMD echo SHELLO
+
+*创建dockerfile, 使用docker run命令运行
+docker build --tag example .
+docker run example
+
+或者直接在docker run中创建容器事直接运行
+docker run -e HELLO=4321 exmaple
+
+*ADD 用于想镜像添加文件
+格式:<要复制文件的路径><将文件复制到镜像中的路径>
+dockerfile
+ADD hello-entrypoint.sh /entrypoint.sh 
+ADD hello-dir /hello-dir
+ADD zlib-1.2.8.tar.gz /		*tar包会直接解压缩之后传到路径中
+ADD hello.zip /
+ADD http://example.com.hello.txt /hello.txt
+ADD *.txt /root/
+
+*COPY 用于想镜像添加文件,不会解压tar文件
+格式:<要复制文件的路径><将文件复制到镜像中的路径>
+vim dockerfile
+COPY hello-entrypoint.sh /entrypoint.sh
+COPY hello-dir /hello-dir
+COPY zlib-1.2.8.tar.gz /zlib-1.2.8.tar.gz
+COPY *.txt /root/
+
+*VOLUME 设置用于将目录下的内容存储到主机而非容器
+格式:VOLUME<容器目录>或VOLUME["容器目录1", "容器目录2"]
+vim dockerfile 
+VOLUME /data
+VOLUME ["/data", "/var/log/hello"]
+
+若想连接数据卷与主机的特定目录,则必须在docker run命令中使用-v选项
+格式:-v <主机目录>:<容器目录>
+docker run -v /root/data:/data example
+
+*USER 用于设置运行命令的用户账号
+格式:USER<账号用户名>
+USER nobody
+
+dockerfile
+USER 	nobody
+RUN  touch /tmp/hello.txt
+USER root
+RUN  touch /hello.txt
+ENTRYPOINT  /hello-entrypoint.sh
+
+*WORKDIR 用于设置执行RUN,CMD,ENTRYPOINT命令的目录
+格式:WORKDIR <路径>{使用绝对路径或相对路径}
+dockerfile
+WORKDIR /var/www
+
+dockerfile
+WORKDIR /root
+RUN touch hello.txt
+
+WORKDIR /tmp
+RUN touch hello.txt
+
+*使用相对路径
+dockerfile
+WORKDIR var
+WORKDIR www
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
